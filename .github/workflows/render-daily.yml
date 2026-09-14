@@ -1,0 +1,58 @@
+name: Render Daily YouTube Videos
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 5 * * *'   # 08:00 Europe/Istanbul
+  push:
+    paths:
+      - 'scripts/**'
+      - '.github/workflows/render-daily.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      TZ: Europe/Istanbul
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install FFmpeg and Python dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg python3-opencv python3-numpy fonts-dejavu-core
+
+      - name: Render daily videos
+        run: |
+          python3 scripts/render_daily.py
+          ls -lh outputs/latest
+
+      - name: Create or update public latest release
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="daily-latest"
+          DATE="$(date +%F)"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --title "Daily YouTube Render - $DATE" --notes "Automatically generated free YouTube assets for $DATE (Europe/Istanbul)."
+          else
+            gh release create "$TAG" --title "Daily YouTube Render - $DATE" --notes "Automatically generated free YouTube assets for $DATE (Europe/Istanbul)."
+          fi
+          gh release upload "$TAG" outputs/latest/*.mp4 outputs/latest/manifest.json --clobber
+
+      - name: Show public asset URLs
+        run: |
+          echo "Short 1: https://github.com/${{ github.repository }}/releases/download/daily-latest/short_1_mesmerizing.mp4"
+          echo "Short 2: https://github.com/${{ github.repository }}/releases/download/daily-latest/short_2_optical.mp4"
+          echo "Short 3: https://github.com/${{ github.repository }}/releases/download/daily-latest/short_3_rain.mp4"
+          echo "Short 4: https://github.com/${{ github.repository }}/releases/download/daily-latest/short_4_loop.mp4"
+          echo "Short 5: https://github.com/${{ github.repository }}/releases/download/daily-latest/short_5_experiment.mp4"
+          echo "Long: https://github.com/${{ github.repository }}/releases/download/daily-latest/long_focus_25min.mp4"
+          echo "Manifest: https://github.com/${{ github.repository }}/releases/download/daily-latest/manifest.json"
