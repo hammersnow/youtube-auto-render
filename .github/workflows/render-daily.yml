@@ -32,6 +32,7 @@ jobs:
       - name: Render daily videos
         run: |
           python3 scripts/render_daily.py
+          python3 scripts/render_optical_v2.py
           ls -lh outputs/latest
 
       - name: Create or update public latest release
