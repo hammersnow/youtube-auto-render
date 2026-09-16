@@ -69,3 +69,5 @@ encode('short_3_rain',length,185)
 encode('short_4_loop',bright,220)
 encode('short_5_experiment',odd,245)
 print('Optical illusion winner-family Shorts rendered.')
+
+# Daily render trigger: 2026-09-16 Europe/Istanbul
