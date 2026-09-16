@@ -3,7 +3,11 @@ name: Render Daily YouTube Videos
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 5 * * *'   # 08:00 Europe/Istanbul
+    # GitHub scheduled runs can be delayed. Three off-the-hour windows make the
+    # daily render resilient; the preflight below keeps them idempotent.
+    - cron: '17 0 * * *'  # 03:17 Europe/Istanbul
+    - cron: '47 2 * * *'  # 05:47 Europe/Istanbul
+    - cron: '17 5 * * *'  # 08:17 Europe/Istanbul
   push:
     paths:
       - 'scripts/**'
@@ -11,6 +15,10 @@ on:
 
 permissions:
   contents: write
+
+concurrency:
+  group: daily-render
+  cancel-in-progress: false
 
 jobs:
   render:
@@ -25,17 +33,36 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install FFmpeg and Python dependencies
+        id: preflight
+        shell: bash
         run: |
+          set -euo pipefail
+          TODAY="$(date +%F)"
+          CURRENT_DATE="$(curl -fsSL --retry 3 --retry-delay 5 \
+            "https://github.com/${{ github.repository }}/releases/download/daily-latest/manifest.json" \
+            | python3 -c 'import json,sys; print(json.load(sys.stdin).get("date", ""))' \
+            2>/dev/null || true)"
+
+          if [[ "${{ github.event_name }}" == "schedule" && "$CURRENT_DATE" == "$TODAY" ]]; then
+            echo "render=false" >> "$GITHUB_OUTPUT"
+            echo "Daily release is already current for $TODAY; nothing to do."
+            exit 0
+          fi
+
+          echo "render=true" >> "$GITHUB_OUTPUT"
           sudo apt-get update
           sudo apt-get install -y ffmpeg python3-opencv python3-numpy fonts-dejavu-core
 
       - name: Render daily videos
+        if: steps.preflight.outputs.render == 'true'
         run: |
+          rm -rf outputs/latest
           python3 scripts/render_daily.py
           python3 scripts/render_optical_v2.py
           ls -lh outputs/latest
 
       - name: Create or update public latest release
+        if: steps.preflight.outputs.render == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -48,7 +75,26 @@ jobs:
           fi
           gh release upload "$TAG" outputs/latest/*.mp4 outputs/latest/manifest.json --clobber
 
+      - name: Verify published daily release
+        if: steps.preflight.outputs.render == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          TODAY="$(date +%F)"
+          URL="https://github.com/${{ github.repository }}/releases/download/daily-latest/manifest.json"
+          for attempt in 1 2 3 4 5; do
+            PUBLISHED_DATE="$(curl -fsSL --retry 2 --retry-delay 3 "$URL" \
+              | python3 -c 'import json,sys; print(json.load(sys.stdin).get("date", ""))' \
+              2>/dev/null || true)"
+            [[ "$PUBLISHED_DATE" == "$TODAY" ]] && exit 0
+            echo "Attempt $attempt: expected $TODAY, got ${PUBLISHED_DATE:-unavailable}."
+            sleep 10
+          done
+          echo "Published manifest did not advance to $TODAY." >&2
+          exit 1
+
       - name: Show public asset URLs
+        if: steps.preflight.outputs.render == 'true'
         run: |
           echo "Short 1: https://github.com/${{ github.repository }}/releases/download/daily-latest/short_1_mesmerizing.mp4"
           echo "Short 2: https://github.com/${{ github.repository }}/releases/download/daily-latest/short_2_optical.mp4"
