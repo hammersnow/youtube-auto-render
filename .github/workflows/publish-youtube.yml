@@ -1,0 +1,55 @@
+name: Publish Daily Shorts to YouTube
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '30 6 * * *' # 09:30 Europe/Istanbul
+
+permissions:
+  contents: read
+
+concurrency:
+  group: daily-youtube-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+      YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+      YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify OAuth secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$YOUTUBE_CLIENT_ID"
+          test -n "$YOUTUBE_CLIENT_SECRET"
+          test -n "$YOUTUBE_REFRESH_TOKEN"
+
+      - name: Download today's rendered Shorts
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://github.com/${{ github.repository }}/releases/download/daily-latest"
+          curl -fsSL --retry 4 "$BASE/manifest.json" -o manifest.json
+          TODAY="$(TZ=Europe/Istanbul date +%F)"
+          GOT="$(python3 -c 'import json; print(json.load(open("manifest.json")).get("date",""))')"
+          test "$GOT" = "$TODAY" || { echo "Release is stale: $GOT, expected $TODAY"; exit 1; }
+          for f in short_1_mesmerizing short_2_optical short_3_rain short_4_loop short_5_experiment; do
+            curl -fL --retry 4 "$BASE/$f.mp4" -o "$f.mp4"
+          done
+
+      - name: Publish five Shorts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/youtube_upload.py short_1_mesmerizing.mp4 "Which Center Is Bigger? 👀 #Shorts" "Which center looks bigger? Trust your first answer, then look again. #opticalillusion #brainteaser #shorts" "optical illusion" "brain teaser" "visual puzzle" shorts
+          python3 scripts/youtube_upload.py short_2_optical.mp4 "Are These Lines Really Parallel? 👀 #Shorts" "Your eyes may disagree with geometry. Are these lines parallel? #opticalillusion #visualtrick #shorts" "optical illusion" "parallel lines" "visual trick" shorts
+          python3 scripts/youtube_upload.py short_3_rain.mp4 "Which Line Is Longer? 🤔 #Shorts" "Top or bottom? Make your choice before looking twice. #opticalillusion #brainteaser #shorts" "optical illusion" "line illusion" "brain teaser" shorts
+          python3 scripts/youtube_upload.py short_4_loop.mp4 "Which Circle Is Brighter? 👀 #Shorts" "Left or right? The background may be fooling your eyes. #opticalillusion #perception #shorts" "optical illusion" perception "visual puzzle" shorts
+          python3 scripts/youtube_upload.py short_5_experiment.mp4 "Find the Different One Before Time Runs Out 🔎 #Shorts" "One circle is different. Can you spot it before the reveal? #visualpuzzle #challenge #shorts" "visual puzzle" "find the different one" challenge shorts
