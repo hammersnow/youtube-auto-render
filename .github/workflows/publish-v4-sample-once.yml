@@ -1,0 +1,39 @@
+name: Publish V4 Sample Once
+on:
+  push:
+    paths:
+      - '.github/workflows/publish-v4-sample-once.yml'
+permissions:
+  contents: read
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+      YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+      YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download current V4 sample
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://github.com/${{ github.repository }}/releases/download/daily-latest"
+          curl -fsSL --retry 4 "$BASE/manifest.json" -o manifest.json
+          python3 - <<'PY'
+          import json
+          m=json.load(open("manifest.json"))
+          assert m.get("strategy")=="retention-loop-v4", m.get("strategy")
+          assert m.get("resolution")=="1080x1920"
+          assert m.get("fps")==30
+          PY
+          curl -fL --retry 4 "$BASE/short_1_mesmerizing.mp4" -o short_1_mesmerizing.mp4
+      - name: Publish one V4 sample now
+        shell: bash
+        run: |
+          set -euo pipefail
+          TITLE="$(python3 -c 'import json; print(json.load(open("manifest.json"))["shorts"][0]["title"])')"
+          DESC="$(python3 -c 'import json; print(json.load(open("manifest.json"))["shorts"][0]["description"])')"
+          HASH="$(python3 -c 'import json; print(json.load(open("manifest.json"))["shorts"][0]["sha256"])')"
+          python3 scripts/youtube_upload.py short_1_mesmerizing.mp4 "$TITLE" "$DESC" "V4-SAMPLE:$HASH" - "visual puzzle" "brain teaser" "shorts"
