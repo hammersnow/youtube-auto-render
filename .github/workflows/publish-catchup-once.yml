@@ -1,0 +1,48 @@
+name: Publish Varied Shorts Catchup Once
+on:
+  push:
+    paths:
+      - '.github/workflows/publish-catchup-once.yml'
+permissions:
+  contents: read
+concurrency:
+  group: youtube-catchup-2026-09-19
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+      YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+      YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download and validate new varied set
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://github.com/${{ github.repository }}/releases/download/daily-latest"
+          curl -fsSL --retry 4 "$BASE/manifest.json" -o manifest.json
+          python3 - <<'PY'
+          import json
+          m=json.load(open('manifest.json'))
+          assert m.get('date')=='2026-09-19', m.get('date')
+          assert m.get('strategy')=='daily-varied-visual-puzzles-v3', m.get('strategy')
+          assert len(m.get('shorts',[]))==5
+          print([(x['file'],x['title']) for x in m['shorts']])
+          PY
+          for f in short_1_mesmerizing short_2_optical short_3_rain short_4_loop short_5_experiment; do curl -fL --retry 4 "$BASE/$f.mp4" -o "$f.mp4"; done
+      - name: Publish all five immediately
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json,subprocess,sys
+          m=json.load(open('manifest.json'))
+          for i,x in enumerate(m['shorts'],1):
+              desc=x.get('description') or x.get('text') or 'Solve the visual puzzle before the reveal. #visualpuzzle #brainteaser #shorts'
+              tags=x.get('tags') or ['visual puzzle','brain teaser','shorts']
+              marker='AUTO-CATCHUP:2026-09-19:varied:%d'%i
+              cmd=[sys.executable,'scripts/youtube_upload.py',x['file'],x['title'],desc,marker,'-']+tags
+              subprocess.run(cmd,check=True)
+          PY
