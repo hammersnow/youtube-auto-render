@@ -1,0 +1,42 @@
+name: Publish Two More V4 Shorts Once
+on:
+  push:
+    paths:
+      - '.github/workflows/publish-two-v4-once.yml'
+permissions:
+  contents: read
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+      YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+      YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download two V4 Shorts
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://github.com/${{ github.repository }}/releases/download/daily-latest"
+          curl -fsSL --retry 4 "$BASE/manifest.json" -o manifest.json
+          python3 - <<'PY'
+          import json
+          m=json.load(open("manifest.json"))
+          assert m.get("strategy")=="retention-loop-v4"
+          assert m.get("resolution")=="1080x1920" and m.get("fps")==30
+          PY
+          for f in short_2_optical short_3_rain; do curl -fL --retry 4 "$BASE/$f.mp4" -o "$f.mp4"; done
+      - name: Publish two more now
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json,subprocess
+          m=json.load(open("manifest.json"))
+          for i in (1,2):
+              x=m["shorts"][i]
+              args=["python3","scripts/youtube_upload.py",x["file"],x["title"],x["description"],"V4-TODAY:"+x["sha256"],"-"]+x.get("tags",["visual puzzle","brain teaser","shorts"])
+              subprocess.run(args,check=True)
+          PY
