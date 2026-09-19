@@ -44,13 +44,8 @@ jobs:
             curl -fL --retry 4 "$BASE/$f.mp4" -o "$f.mp4"
           done
 
-      - name: Publish five Shorts
+      - name: Publish five manifest-driven Shorts
         shell: bash
         run: |
           set -euo pipefail
-          D="$(TZ=Europe/Istanbul date +%F)"
-          python3 scripts/youtube_upload.py short_1_mesmerizing.mp4 "Which Center Is Bigger? 👀 #Shorts" "Which center looks bigger? Trust your first answer, then look again. #opticalillusion #brainteaser #shorts" "AUTO-SHORT:$D:1" "$D"T07:00:00Z "optical illusion" "brain teaser" "visual puzzle" shorts
-          python3 scripts/youtube_upload.py short_2_optical.mp4 "Are These Lines Really Parallel? 👀 #Shorts" "Your eyes may disagree with geometry. Are these lines parallel? #opticalillusion #visualtrick #shorts" "AUTO-SHORT:$D:2" "$D"T09:00:00Z "optical illusion" "parallel lines" "visual trick" shorts
-          python3 scripts/youtube_upload.py short_3_rain.mp4 "Which Line Is Longer? 🤔 #Shorts" "Top or bottom? Make your choice before looking twice. #opticalillusion #brainteaser #shorts" "AUTO-SHORT:$D:3" "$D"T12:00:00Z "optical illusion" "line illusion" "brain teaser" shorts
-          python3 scripts/youtube_upload.py short_4_loop.mp4 "Which Circle Is Brighter? 👀 #Shorts" "Left or right? The background may be fooling your eyes. #opticalillusion #perception #shorts" "AUTO-SHORT:$D:4" "$D"T13:00:00Z "optical illusion" perception "visual puzzle" shorts
-          python3 scripts/youtube_upload.py short_5_experiment.mp4 "Find the Different One Before Time Runs Out 🔎 #Shorts" "One circle is different. Can you spot it before the reveal? #visualpuzzle #challenge #shorts" "AUTO-SHORT:$D:5" "$D"T14:00:00Z "visual puzzle" "find the different one" challenge shorts
+          python3 scripts/publish_from_manifest.py
