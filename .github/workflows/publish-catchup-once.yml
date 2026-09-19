@@ -1,3 +1,4 @@
+# Retry after upload-only OAuth compatibility fix
 name: Publish Varied Shorts Catchup Once
 on:
   push:
