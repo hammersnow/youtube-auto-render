@@ -18,7 +18,7 @@ def bg(t,pal):
 def timer(im,t):
  if 1<=t<6:
   p=(t-1)/5; c=(540,1590);r=90
-  cv2.circle(im,c,r,(65,70,90),12,cv2.LINE_AA);cv2.ellipse(im,c,(r,r),-90,-90+360*(1-p),(40,220,245),12,cv2.LINE_AA)
+  cv2.circle(im,c,r,(65,70,90),12,cv2.LINE_AA);cv2.ellipse(im,c,(r,r),-90,-90,float(-90+360*(1-p)),(40,220,245),12,cv2.LINE_AA)
 def reveal(im,x,y,t):
  if 6<=t<7.5:
   q=(t-6)/1.5;r=int(60+25*math.sin(q*math.pi*2)**2)
