@@ -11,7 +11,7 @@ def txt(im,s,y,sc=1.6,col=(245,245,245),th=3):
 def bg(t,pal):
  im=np.zeros((H,W,3),np.uint8); yy=np.linspace(0,1,H)[:,None]; pulse=.5+.5*math.sin(2*math.pi*t/D)
  a=np.array(pal[0],float);b=np.array(pal[1],float)
- im[:]=((a[None,None,:]*(1-yy[:,:,None])+b[None,None,:]*yy[:,:,None])*(.88+.08*pulse)).clip(0,255)).astype(np.uint8)
+ im[:]=((a[None,None,:]*(1-yy[:,:,None])+b[None,None,:]*yy[:,:,None])*(.88+.08*pulse)).clip(0,255).astype(np.uint8)
  for k in range(34):
   x=int((k*173+SEED%251+18*t)%W);y=int((k*277+SEED%337+10*t)%H);cv2.circle(im,(x,y),2+(k%3),(110,120,150),-1)
  return im
