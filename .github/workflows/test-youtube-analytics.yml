@@ -1,0 +1,28 @@
+name: Test YouTube Analytics OAuth
+on:
+  push:
+    paths:
+      - '.github/workflows/test-youtube-analytics.yml'
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+      YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+      YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+    steps:
+      - name: Exchange refresh token and test Analytics
+        shell: bash
+        run: |
+          set -euo pipefail
+          TOKEN_JSON="$(curl -fsS -X POST https://oauth2.googleapis.com/token             -d client_id="$YOUTUBE_CLIENT_ID"             -d client_secret="$YOUTUBE_CLIENT_SECRET"             -d refresh_token="$YOUTUBE_REFRESH_TOKEN"             -d grant_type=refresh_token)"
+          ACCESS_TOKEN="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["access_token"])' <<<"$TOKEN_JSON")"
+          curl -fsS -H "Authorization: Bearer $ACCESS_TOKEN"             "https://youtubeanalytics.googleapis.com/v2/reports?ids=channel%3D%3DMINE&startDate=2026-09-19&endDate=2026-09-19&metrics=views%2CestimatedMinutesWatched%2CaverageViewDuration%2Clikes%2Ccomments%2Cshares%2CsubscribersGained%2CsubscribersLost"             -o analytics.json
+          python3 - <<'PY'
+          import json
+          d=json.load(open("analytics.json"))
+          print("ANALYTICS_OK")
+          print(json.dumps(d, indent=2))
+          PY
