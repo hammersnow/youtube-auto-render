@@ -1,18 +1,36 @@
 #!/usr/bin/env python3
 import json,subprocess,sys
 from datetime import datetime,timezone,timedelta
+
+IST=timezone(timedelta(hours=3))
 m=json.load(open("manifest.json"))
 shorts=m.get("shorts",[])
 if len(shorts)!=5: raise SystemExit("manifest must contain exactly 5 shorts")
-# 10:00,12:00,15:00,16:00,17:00 Istanbul = UTC+3
-hours=[7,9,12,13,14]
-day=m["date"]
-for i,(item,h) in enumerate(zip(shorts,hours),1):
+
+# Desired Istanbul slots. If a slot is already past, move it forward while
+# preserving spacing instead of sending an invalid/past publishAt.
+slots=[(10,0),(12,0),(15,0),(16,0),(17,0)]
+now=datetime.now(IST)
+day=datetime.strptime(m["date"],"%Y-%m-%d").date()
+targets=[datetime(day.year,day.month,day.day,h,minute,tzinfo=IST) for h,minute in slots]
+
+safe=[]
+cursor=now+timedelta(minutes=10)
+for target in targets:
+    chosen=max(target,cursor)
+    # round catch-up times to the next 5-minute boundary
+    if chosen==cursor:
+        add=(5-(chosen.minute%5))%5
+        chosen=(chosen+timedelta(minutes=add)).replace(second=0,microsecond=0)
+    safe.append(chosen)
+    cursor=chosen+timedelta(minutes=60)
+
+for i,(item,local_pub) in enumerate(zip(shorts,safe),1):
     title=item["title"]
     desc=item.get("description","Solve the visual puzzle before the reveal. #visualpuzzle #brainteaser #shorts")
     tags=item.get("tags",["visual puzzle","brain teaser","shorts"])
-    marker="AUTO-SHORT:%s:%s:%s"%(day,i,item.get("variant","v"))
-    pub="%sT%02d:00:00Z"%(day,h)
+    marker="AUTO-SHORT:%s:%s:%s"%(m["date"],i,item.get("variant","v"))
+    pub=local_pub.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    print("Scheduling",i,title,"for",local_pub.isoformat(),"(",pub,")",flush=True)
     cmd=[sys.executable,"scripts/youtube_upload.py",item["file"],title,desc,marker,pub]+tags
-    print("Scheduling",i,title,"for",pub,flush=True)
     subprocess.run(cmd,check=True)
