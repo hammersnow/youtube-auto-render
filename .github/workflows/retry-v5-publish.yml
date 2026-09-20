@@ -30,3 +30,4 @@ jobs:
           for f in short_1_mesmerizing short_2_optical short_3_rain short_4_loop short_5_experiment; do curl -fL "$BASE/$f.mp4" -o "$f.mp4"; done
       - name: Retry V5 upload
         run: python3 scripts/publish_from_manifest.py
+# hourly limit probe 2026-09-20T16:49+03:00
