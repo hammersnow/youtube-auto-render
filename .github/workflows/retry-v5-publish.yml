@@ -1,0 +1,32 @@
+name: Retry V5 Publish Once
+on:
+  push:
+    paths: ['.github/workflows/retry-v5-publish.yml']
+permissions:
+  contents: read
+concurrency:
+  group: daily-youtube-publish
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+      YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+      YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download verified V5 batch
+        run: |
+          set -euo pipefail
+          BASE="https://github.com/${{ github.repository }}/releases/download/daily-latest"
+          curl -fsSL "$BASE/manifest.json" -o manifest.json
+          python3 - <<'PY'
+          import json,datetime
+          m=json.load(open("manifest.json"))
+          assert m.get("strategy")=="diversity-v5", m.get("strategy")
+          print("Verified",m["strategy"],m["date"])
+          PY
+          for f in short_1_mesmerizing short_2_optical short_3_rain short_4_loop short_5_experiment; do curl -fL "$BASE/$f.mp4" -o "$f.mp4"; done
+      - name: Retry V5 upload
+        run: python3 scripts/publish_from_manifest.py
