@@ -31,6 +31,12 @@ jobs:
           test -n "$YOUTUBE_CLIENT_SECRET"
           test -n "$YOUTUBE_REFRESH_TOKEN"
 
+      - name: Analyze previous 7 days before publishing
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/youtube_analytics_preflight.py
+
       - name: Download today's rendered Shorts
         shell: bash
         run: |
