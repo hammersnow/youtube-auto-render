@@ -29,7 +29,9 @@ for i,(item,local_pub) in enumerate(zip(shorts,safe),1):
     title=item["title"]
     desc=item.get("description","Solve the visual puzzle before the reveal. #visualpuzzle #brainteaser #shorts")
     tags=item.get("tags",["visual puzzle","brain teaser","shorts"])
-    marker="AUTO-SHORT:%s:%s:%s"%(m["date"],i,item.get("variant","v"))
+    slot_marker="AUTO-SHORT:%s:%s"%(m["date"],i)
+    content_marker="AUTO-SHA256:%s"%item["sha256"]
+    marker=slot_marker+"\n"+content_marker
     pub=local_pub.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     print("Scheduling",i,title,"for",local_pub.isoformat(),"(",pub,")",flush=True)
     cmd=[sys.executable,"scripts/youtube_upload.py",item["file"],title,desc,marker,pub]+tags
