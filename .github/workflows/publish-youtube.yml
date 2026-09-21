@@ -15,7 +15,9 @@ concurrency:
 
 jobs:
   publish:
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    # Script/code pushes may render for validation, but must never schedule videos.
+    # Only scheduled/manual render runs, or a direct manual publisher run, may publish.
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event != 'push') }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
