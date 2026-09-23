@@ -404,7 +404,7 @@ def sequence_next(t, seed):
         else:
             cv2.putText(im,"?",(xs[i]-27,675),FONT,1.8,(220,225,240),4,cv2.LINE_AA)
 
-    options=[0,90,180,270]
+    options=[start%360,(start+90)%360,(start+180)%360,(start+270)%360]
     rng=np.random.default_rng(seed+91); rng.shuffle(options)
     correct_angle=seq[3]
     correct=options.index(correct_angle)
@@ -563,6 +563,7 @@ manifest={
     "fps":30,
     "timing_policy":"family-adaptive-v1",
     "duration_range_sec":[10.0,11.5],
+    "solve_window_range_sec":[6.85,7.85],
     "shorts":items
 }
 with open(OUT/"manifest.json","w",encoding="utf-8") as f:
