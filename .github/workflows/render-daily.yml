@@ -58,7 +58,7 @@ jobs:
         run: |
           rm -rf outputs/latest
           python3 scripts/render_daily.py
-          python3 scripts/render_optical_v2.py
+          python3 scripts/render_motion_v6.py
           ls -lh outputs/latest
 
       - name: Create or update public latest release
