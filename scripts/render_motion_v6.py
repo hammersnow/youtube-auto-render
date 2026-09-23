@@ -318,6 +318,158 @@ def visual_memory(t, seed):
     draw_timer(im,t,accent,1)
     return im
 
+
+def moving_count(t, seed):
+    im,accent = scene(seed,0,t)
+    centered_text(im,"COUNT THE CYAN ORBS",205,1.22)
+    target_n=5+(seed%4); total=15
+    for i in range(total):
+        ph=(seed%83)*0.027+i*0.73
+        x=540+330*math.sin(0.72*t+ph)+70*math.sin(1.55*t+ph*0.5)
+        y=930+390*math.cos(0.58*t+ph*1.23)+65*math.sin(1.31*t+ph)
+        x=int(clamp(x,100,980)); y=int(clamp(y,390,1460))
+        if i<target_n:
+            col=(245,195,70)
+        else:
+            col=(105,95,235) if i%2 else (100,220,135)
+        pulse=1.0+0.10*math.sin(t*4.0+i)
+        cv2.circle(im,(x,y),int(25*pulse),col,-1,cv2.LINE_AA)
+        cv2.circle(im,(x,y),int(34*pulse),(225,230,240),2,cv2.LINE_AA)
+    if t>=6:
+        centered_text(im,"ANSWER: %d"%target_n,1515,1.55,(70,245,120),4)
+    draw_timer(im,t,accent,2)
+    return im
+
+def rotate_points(points, angle, center, scale=1.0, mirror=False):
+    ca,sa=math.cos(angle),math.sin(angle)
+    out=[]
+    for x,y in points:
+        if mirror: x=-x
+        x*=scale; y*=scale
+        rx=x*ca-y*sa; ry=x*sa+y*ca
+        out.append((int(center[0]+rx),int(center[1]+ry)))
+    return np.array(out,np.int32)
+
+def shadow_match(t, seed):
+    im,accent = scene(seed,1,t)
+    centered_text(im,"WHICH SHADOW MATCHES?",205,1.15)
+    base=[(-95,-55),(10,-55),(10,-115),(125,0),(10,115),(10,55),(-95,55),(-55,0)]
+    angle=t*0.72+(seed%7)*0.18
+    main=rotate_points(base,angle,(540,650),1.45,False)
+    cv2.fillPoly(im,[main],accent,cv2.LINE_AA)
+    cv2.circle(im,(540,650),190,(220,225,240),3,cv2.LINE_AA)
+
+    slots=[(180,1160),(420,1160),(660,1160),(900,1160)]
+    correct=seed%4
+    for i,(x,y) in enumerate(slots):
+        variant=base
+        mirror=False
+        scale=.62
+        if i!=correct:
+            if (i+seed)%3==0:
+                mirror=True
+            elif (i+seed)%3==1:
+                variant=list(base); variant[3]=(90,0)
+            else:
+                variant=list(base); variant[-1]=(-20,0)
+        pts=rotate_points(variant,0,(x,y),scale,mirror)
+        cv2.fillPoly(im,[pts],(95,105,125),cv2.LINE_AA)
+        cv2.putText(im,chr(65+i),(x-18,y+150),FONT,1.0,(235,240,250),3,cv2.LINE_AA)
+    if t>=6:
+        x,y=slots[correct]
+        centered_text(im,"SHADOW %s"%chr(65+correct),1515,1.45,(70,245,120),4)
+        reveal_burst(im,x,y,t)
+    draw_timer(im,t,accent,0)
+    return im
+
+def sequence_next(t, seed):
+    im,accent = scene(seed,2,t)
+    centered_text(im,"WHAT COMES NEXT?",205,1.30)
+    start=(seed%4)*45
+    seq=[(start+i*90)%360 for i in range(4)]
+    xs=[210,430,650,870]
+    for i in range(4):
+        rounded_card(im,xs[i],650,170,190,(32,38,58),(115,125,155),2)
+        if i<3:
+            ang=math.radians(seq[i])
+            r=52
+            x2=int(xs[i]+r*math.cos(ang)); y2=int(650+r*math.sin(ang))
+            cv2.arrowedLine(im,(xs[i],650),(x2,y2),accent,9,cv2.LINE_AA,tipLength=.35)
+        else:
+            cv2.putText(im,"?",(xs[i]-27,675),FONT,1.8,(220,225,240),4,cv2.LINE_AA)
+
+    options=[0,90,180,270]
+    rng=np.random.default_rng(seed+91); rng.shuffle(options)
+    correct_angle=seq[3]
+    correct=options.index(correct_angle)
+    ox=[180,420,660,900]
+    for i,a in enumerate(options):
+        rounded_card(im,ox[i],1160,165,175,(28,33,50),(100,110,140),2)
+        ang=math.radians(a); r=48
+        x2=int(ox[i]+r*math.cos(ang)); y2=int(1160+r*math.sin(ang))
+        cv2.arrowedLine(im,(ox[i],1160),(x2,y2),(225,225,230),8,cv2.LINE_AA,tipLength=.35)
+        cv2.putText(im,chr(65+i),(ox[i]-16,1300),FONT,.9,(235,240,250),2,cv2.LINE_AA)
+    if t>=6:
+        x=ox[correct]
+        cv2.rectangle(im,(x-92,1065),(x+92,1255),(70,245,120),7,cv2.LINE_AA)
+        centered_text(im,"OPTION %s"%chr(65+correct),1515,1.35,(70,245,120),4)
+        reveal_burst(im,x,1160,t)
+    draw_timer(im,t,accent,1)
+    return im
+
+def color_memory(t, seed):
+    im,accent = scene(seed,3,t)
+    colors=[(80,205,245),(245,145,75),(85,225,135),(225,105,235)]
+    labels=["CYAN","ORANGE","GREEN","PINK"]
+    rng=np.random.default_rng(seed+123)
+    order=list(range(4)); rng.shuffle(order)
+    wanted=2
+    if t<4.3:
+        centered_text(im,"MEMORIZE THE COLORS",205,1.18)
+        idx=int(clamp((t-.55)/.90,0,3))
+        if t<.55: idx=0
+        cidx=order[idx]
+        pulse=1.0+0.10*math.sin(t*8)
+        cv2.circle(im,(540,900),int(165*pulse),colors[cidx],-1,cv2.LINE_AA)
+        cv2.circle(im,(540,900),215,(235,240,250),5,cv2.LINE_AA)
+        centered_text(im,"COLOR %d"%(idx+1),1320,1.0,(220,225,235),3)
+    else:
+        centered_text(im,"WHICH COLOR WAS THIRD?",205,1.02)
+        xs=[180,420,660,900]
+        for i,(col,label) in enumerate(zip(colors,labels)):
+            cv2.circle(im,(xs[i],930),72,col,-1,cv2.LINE_AA)
+            cv2.putText(im,label,(xs[i]-72,1075),FONT,.55,(235,240,250),2,cv2.LINE_AA)
+        correct=order[wanted]
+        if t>=6:
+            x=xs[correct]
+            reveal_burst(im,x,930,t)
+            centered_text(im,labels[correct],1515,1.45,(70,245,120),4)
+    draw_timer(im,t,accent,0)
+    return im
+
+def wrong_motion(t, seed):
+    im,accent = scene(seed,4,t)
+    centered_text(im,"WHICH ORB MOVES WRONG?",205,1.08)
+    centers=[]
+    for r in range(3):
+        for c in range(3):
+            centers.append((300+c*240,610+r*300))
+    bad=seed%9
+    for i,(cx,cy) in enumerate(centers):
+        cv2.circle(im,(cx,cy),58,(65,72,92),2,cv2.LINE_AA)
+        direction=-1 if i==bad else 1
+        ang=direction*(t*2.6+i*.44)
+        x=int(cx+48*math.cos(ang)); y=int(cy+48*math.sin(ang))
+        cv2.circle(im,(x,y),18,accent,-1,cv2.LINE_AA)
+        cv2.circle(im,(cx,cy),8,(225,230,240),-1,cv2.LINE_AA)
+    if t>=6:
+        x,y=centers[bad]
+        centered_text(im,"FOUND THE REVERSE ORBIT",1515,.92,(70,245,120),3)
+        reveal_burst(im,x,y,t)
+    draw_timer(im,t,accent,2)
+    return im
+
+
 def audio(path, freq):
     sr=24000
     tt=np.arange(sr*D,dtype=np.float32)/sr
@@ -356,13 +508,25 @@ def encode(name, fn, freq, seed):
     raw.unlink(missing_ok=True); wav.unlink(missing_ok=True)
     return hashlib.sha256(fin.read_bytes()).hexdigest()
 
-families=[
+bank_a=[
     ("memory_shuffle",memory_shuffle,"Can You Follow the Hidden Orb? 🟢 #Shorts"),
     ("object_tracking",object_tracking,"Don't Lose the Target 👀 #Shorts"),
     ("animated_maze",animated_maze,"Which Signal Reaches the Core? ⚡ #Shorts"),
     ("spot_difference",spot_difference,"Spot the Difference Before Time Runs Out 🔎 #Shorts"),
     ("visual_memory",visual_memory,"Which Tile Vanished? 🧠 #Shorts"),
 ]
+bank_b=[
+    ("moving_count",moving_count,"How Many Cyan Orbs Did You Count? 🔵 #Shorts"),
+    ("shadow_match",shadow_match,"Which Shadow Matches? 👤 #Shorts"),
+    ("sequence_next",sequence_next,"What Comes Next? 🧩 #Shorts"),
+    ("color_memory",color_memory,"Which Color Was Third? 🎨 #Shorts"),
+    ("wrong_motion",wrong_motion,"Which Orb Moves the Wrong Way? 👀 #Shorts"),
+]
+# Odd/even date rotation guarantees that consecutive days use different
+# content families while keeping every daily batch at exactly five Shorts.
+rotation_bank="A" if SEED%2==1 else "B"
+families=bank_a if rotation_bank=="A" else bank_b
+
 names=["short_1_mesmerizing","short_2_optical","short_3_rain","short_4_loop","short_5_experiment"]
 items=[]
 for i,(fam,fn,title) in enumerate(families):
@@ -372,7 +536,7 @@ for i,(fam,fn,title) in enumerate(families):
         "file":names[i]+".mp4",
         "title":title,
         "family":fam,
-        "variant":"motion-v6-%s"%local,
+        "variant":"motion-v6.1-%s"%local,
         "sha256":h,
         "description":"Solve the animated visual challenge before the reveal. Comment your answer before time runs out. #visualpuzzle #brainteaser #shorts",
         "tags":["visual puzzle","brain teaser","animated puzzle",fam.replace("_"," "),"shorts"]
@@ -380,7 +544,8 @@ for i,(fam,fn,title) in enumerate(families):
 
 manifest={
     "date":DAY.strftime("%Y-%m-%d"),
-    "strategy":"motion-diversity-v6",
+    "strategy":"motion-rotation-v6.1",
+    "rotation_bank":rotation_bank,
     "resolution":"1080x1920",
     "fps":30,
     "duration_sec":8,
@@ -388,4 +553,4 @@ manifest={
 }
 with open(OUT/"manifest.json","w",encoding="utf-8") as f:
     json.dump(manifest,f,ensure_ascii=False,indent=2)
-print("Motion Diversity V6 rendered:",[(x["family"],x["sha256"][:10]) for x in items])
+print("Motion Rotation V6.1 rendered:",[(x["family"],x["sha256"][:10]) for x in items])
