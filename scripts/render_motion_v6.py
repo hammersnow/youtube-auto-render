@@ -6,10 +6,18 @@ from zoneinfo import ZoneInfo
 
 OUT = Path("outputs/latest")
 OUT.mkdir(parents=True, exist_ok=True)
-W, H, FPS, D = 1080, 1920, 30, 8
+W, H, FPS = 1080, 1920, 30
+SOLVE_START = 1.15
+ACTIVE_DURATION = 11.0
+ACTIVE_REVEAL = 8.5
 DAY = datetime.now(ZoneInfo("Europe/Istanbul"))
 SEED = int(DAY.strftime("%Y%m%d"))
 FONT = cv2.FONT_HERSHEY_SIMPLEX
+
+def set_timing(duration, reveal):
+    global ACTIVE_DURATION, ACTIVE_REVEAL
+    ACTIVE_DURATION = float(duration)
+    ACTIVE_REVEAL = float(reveal)
 
 PALETTES = [
     ((10, 16, 35), (38, 20, 72), (245, 185, 70)),
@@ -55,9 +63,9 @@ def scene(seed, palette_index, t):
     return im, accent
 
 def draw_timer(im, t, accent, style=0):
-    if not (1.15 <= t < 6.0):
+    if not (SOLVE_START <= t < ACTIVE_REVEAL):
         return
-    p = clamp((t-1.15)/4.85,0,1)
+    p = clamp((t-SOLVE_START)/max(0.1,ACTIVE_REVEAL-SOLVE_START),0,1)
     remain = 1.0-p
     if style % 3 == 0:
         cv2.rectangle(im,(150,1640),(930,1660),(55,60,78),-1)
@@ -74,8 +82,9 @@ def draw_timer(im, t, accent, style=0):
             cv2.circle(im,(x,y),8,accent if on else (55,60,78),-1,cv2.LINE_AA)
 
 def reveal_burst(im, x, y, t, col=(70,245,120)):
-    if 6.0 <= t < 7.7:
-        q = (t-6.0)/1.7
+    reveal_span=max(0.6,ACTIVE_DURATION-ACTIVE_REVEAL-0.3)
+    if ACTIVE_REVEAL <= t < ACTIVE_REVEAL+reveal_span:
+        q = (t-ACTIVE_REVEAL)/reveal_span
         r = 55 + int(70*q)
         cv2.circle(im,(int(x),int(y)),r,col,8,cv2.LINE_AA)
         if q < 0.45:
@@ -99,7 +108,7 @@ def memory_shuffle(t, seed):
     swaps=[choices[int(rng.integers(0,len(choices)))] for _ in range(5)]
     perm=[0,1,2]
     pos={i:[float(slots[i][0]),float(slots[i][1])] for i in range(3)}
-    start=1.35; end=5.75
+    start=1.35; end=ACTIVE_REVEAL-0.25
     if t >= start:
         u=clamp((t-start)/(end-start),0,0.999999)
         seg=min(4,int(u*5))
@@ -130,7 +139,7 @@ def memory_shuffle(t, seed):
             centered="?"
             (tw,_),_=cv2.getTextSize(centered,FONT,1.6,4)
             cv2.putText(im,centered,(int(x-tw/2),int(y+18)),FONT,1.6,(215,220,235),4,cv2.LINE_AA)
-    if t>=6:
+    if t>=ACTIVE_REVEAL:
         final=[0,1,2]
         for a,b in swaps:
             final[a],final[b]=final[b],final[a]
@@ -169,7 +178,7 @@ def object_tracking(t, seed):
     if t<1.25:
         cv2.circle(im,(x,y),64,(70,245,120),7,cv2.LINE_AA)
         centered_text(im,"DON'T LOSE THIS ONE",1515,0.95,(70,245,120),3)
-    if t>=6:
+    if t>=ACTIVE_REVEAL:
         cv2.circle(im,(x,y),68,(70,245,120),9,cv2.LINE_AA)
         centered_text(im,"TARGET FOUND",1515,1.25,(70,245,120),4)
         reveal_burst(im,x,y,t)
@@ -209,14 +218,14 @@ def animated_maze(t, seed):
     for i,pts in enumerate(routes):
         cv2.polylines(im,[np.array(pts,np.int32)],False,(170,178,198),8,cv2.LINE_AA)
         cv2.putText(im,chr(65+i),(80,pts[0][1]+13),FONT,1.0,(245,245,245),3,cv2.LINE_AA)
-        if 1.0<t<6.0:
+        if 1.0<t<ACTIVE_REVEAL:
             q=((t-1.0)*0.32+i*0.13)%1.0
             px,py=poly_point(pts,q)
             cv2.circle(im,(px,py),17,accent,-1,cv2.LINE_AA)
             cv2.circle(im,(px,py),28,(235,220,250),2,cv2.LINE_AA)
     cv2.circle(im,target,48,(70,245,120),-1,cv2.LINE_AA)
     cv2.circle(im,target,70,(210,255,225),4,cv2.LINE_AA)
-    if t>=6:
+    if t>=ACTIVE_REVEAL:
         cv2.polylines(im,[np.array(routes[good],np.int32)],False,(70,245,120),15,cv2.LINE_AA)
         centered_text(im,"PATH %s"%chr(65+good),1515,1.45,(70,245,120),4)
         reveal_burst(im,target[0],target[1],t)
@@ -260,14 +269,14 @@ def spot_difference(t, seed):
         draw_symbol(im,base,x1,y,sz,col)
         k2=(base+1)%5 if idx==bad else base
         draw_symbol(im,k2,x2,y,sz,col)
-    if 1.1<t<6.0:
-        q=(t-1.1)/4.9
+    if 1.1<t<ACTIVE_REVEAL:
+        q=(t-1.1)/max(0.1,ACTIVE_REVEAL-1.1)
         sx=int(80+390*q)
         cv2.line(im,(sx,400),(sx,1370),accent,3,cv2.LINE_AA)
         cv2.line(im,(sx+470,400),(sx+470,1370),accent,3,cv2.LINE_AA)
     br,bc=divmod(bad,4)
     bx=right_x+bc*105+45; by=top+br*205
-    if t>=6:
+    if t>=ACTIVE_REVEAL:
         centered_text(im,"FOUND IT",1515,1.35,(70,245,120),4)
         reveal_burst(im,bx,by,t)
         cv2.rectangle(im,(bx-52,by-52),(bx+52,by+52),(70,245,120),7,cv2.LINE_AA)
@@ -310,7 +319,7 @@ def visual_memory(t, seed):
             rounded_card(im,x,y,max(18,int(150*flip)),150,(35,42,62),(115,125,155),2)
             if flip>0.42:
                 memory_symbol(im,idx,x,y,1.0)
-    if t>=6:
+    if t>=ACTIVE_REVEAL:
         cv2.rectangle(im,(190,1420),(890,1605),(18,24,38),-1)
         centered_text(im,"MISSING TILE",1490,0.82,(220,225,235),2)
         memory_symbol(im,missing,540,1550,1.25)
@@ -335,7 +344,7 @@ def moving_count(t, seed):
         pulse=1.0+0.10*math.sin(t*4.0+i)
         cv2.circle(im,(x,y),int(25*pulse),col,-1,cv2.LINE_AA)
         cv2.circle(im,(x,y),int(34*pulse),(225,230,240),2,cv2.LINE_AA)
-    if t>=6:
+    if t>=ACTIVE_REVEAL:
         centered_text(im,"ANSWER: %d"%target_n,1515,1.55,(70,245,120),4)
     draw_timer(im,t,accent,2)
     return im
@@ -375,7 +384,7 @@ def shadow_match(t, seed):
         pts=rotate_points(variant,0,(x,y),scale,mirror)
         cv2.fillPoly(im,[pts],(95,105,125),cv2.LINE_AA)
         cv2.putText(im,chr(65+i),(x-18,y+150),FONT,1.0,(235,240,250),3,cv2.LINE_AA)
-    if t>=6:
+    if t>=ACTIVE_REVEAL:
         x,y=slots[correct]
         centered_text(im,"SHADOW %s"%chr(65+correct),1515,1.45,(70,245,120),4)
         reveal_burst(im,x,y,t)
@@ -398,7 +407,7 @@ def sequence_next(t, seed):
         else:
             cv2.putText(im,"?",(xs[i]-27,675),FONT,1.8,(220,225,240),4,cv2.LINE_AA)
 
-    options=[0,90,180,270]
+    options=[start%360,(start+90)%360,(start+180)%360,(start+270)%360]
     rng=np.random.default_rng(seed+91); rng.shuffle(options)
     correct_angle=seq[3]
     correct=options.index(correct_angle)
@@ -409,7 +418,7 @@ def sequence_next(t, seed):
         x2=int(ox[i]+r*math.cos(ang)); y2=int(1160+r*math.sin(ang))
         cv2.arrowedLine(im,(ox[i],1160),(x2,y2),(225,225,230),8,cv2.LINE_AA,tipLength=.35)
         cv2.putText(im,chr(65+i),(ox[i]-16,1300),FONT,.9,(235,240,250),2,cv2.LINE_AA)
-    if t>=6:
+    if t>=ACTIVE_REVEAL:
         x=ox[correct]
         cv2.rectangle(im,(x-92,1065),(x+92,1255),(70,245,120),7,cv2.LINE_AA)
         centered_text(im,"OPTION %s"%chr(65+correct),1515,1.35,(70,245,120),4)
@@ -440,7 +449,7 @@ def color_memory(t, seed):
             cv2.circle(im,(xs[i],930),72,col,-1,cv2.LINE_AA)
             cv2.putText(im,label,(xs[i]-72,1075),FONT,.55,(235,240,250),2,cv2.LINE_AA)
         correct=order[wanted]
-        if t>=6:
+        if t>=ACTIVE_REVEAL:
             x=xs[correct]
             reveal_burst(im,x,930,t)
             centered_text(im,labels[correct],1515,1.45,(70,245,120),4)
@@ -462,7 +471,7 @@ def wrong_motion(t, seed):
         x=int(cx+48*math.cos(ang)); y=int(cy+48*math.sin(ang))
         cv2.circle(im,(x,y),18,accent,-1,cv2.LINE_AA)
         cv2.circle(im,(cx,cy),8,(225,230,240),-1,cv2.LINE_AA)
-    if t>=6:
+    if t>=ACTIVE_REVEAL:
         x,y=centers[bad]
         centered_text(im,"FOUND THE REVERSE ORBIT",1515,.92,(70,245,120),3)
         reveal_burst(im,x,y,t)
@@ -470,36 +479,40 @@ def wrong_motion(t, seed):
     return im
 
 
-def audio(path, freq):
+def audio(path, freq, duration, reveal):
     sr=24000
-    tt=np.arange(sr*D,dtype=np.float32)/sr
+    samples=int(sr*duration)
+    tt=np.arange(samples,dtype=np.float32)/sr
     sig=.012*np.sin(2*np.pi*freq*tt)+.006*np.sin(2*np.pi*(freq/2.0)*tt)
-    for sec in [2,3,4,5]:
-        start=int(sec*sr); n=int(.07*sr)
+    for sec in range(2,max(2,int(reveal))):
+        start=int(sec*sr); n=min(int(.07*sr),samples-start)
+        if n<=0: continue
         x=np.arange(n,dtype=np.float32)/sr
         env=np.linspace(1,0,n,dtype=np.float32)
         sig[start:start+n]+=.045*np.sin(2*np.pi*(freq*1.9)*x)*env
-    start=int(6.0*sr); n=int(.30*sr)
-    x=np.arange(n,dtype=np.float32)/sr
-    env=np.linspace(1,0,n,dtype=np.float32)
-    sig[start:start+n]+=.065*(np.sin(2*np.pi*(freq*2.25)*x)+.45*np.sin(2*np.pi*(freq*3.0)*x))*env
+    start=int(reveal*sr); n=min(int(.30*sr),samples-start)
+    if n>0:
+        x=np.arange(n,dtype=np.float32)/sr
+        env=np.linspace(1,0,n,dtype=np.float32)
+        sig[start:start+n]+=.065*(np.sin(2*np.pi*(freq*2.25)*x)+.45*np.sin(2*np.pi*(freq*3.0)*x))*env
     sig=np.clip(sig,-.95,.95)
     with wave.open(str(path),"wb") as w:
         w.setnchannels(1); w.setsampwidth(2); w.setframerate(sr)
         w.writeframes((sig*32767).astype("<i2").tobytes())
 
-def encode(name, fn, freq, seed):
+def encode(name, fn, freq, seed, duration, reveal):
+    set_timing(duration,reveal)
     raw=OUT/(name+"_raw.mp4"); wav=OUT/(name+".wav"); fin=OUT/(name+".mp4")
     v=cv2.VideoWriter(str(raw),cv2.VideoWriter_fourcc(*"mp4v"),FPS,(W,H))
     if not v.isOpened():
         raise RuntimeError("OpenCV VideoWriter failed for "+str(raw))
-    for i in range(FPS*D):
+    for i in range(int(FPS*duration)):
         frame=fn(i/FPS,seed)
         if frame.shape!=(H,W,3):
             raise RuntimeError("Bad frame shape for "+name+": "+str(frame.shape))
         v.write(frame)
     v.release()
-    audio(wav,freq)
+    audio(wav,freq,duration,reveal)
     subprocess.run([
         "ffmpeg","-y","-loglevel","error","-i",str(raw),"-i",str(wav),
         "-c:v","libx264","-preset","veryfast","-crf","21","-pix_fmt","yuv420p",
@@ -509,18 +522,18 @@ def encode(name, fn, freq, seed):
     return hashlib.sha256(fin.read_bytes()).hexdigest()
 
 bank_a=[
-    ("memory_shuffle",memory_shuffle,"Can You Follow the Hidden Orb? 🟢 #Shorts"),
-    ("object_tracking",object_tracking,"Don't Lose the Target 👀 #Shorts"),
-    ("animated_maze",animated_maze,"Which Signal Reaches the Core? ⚡ #Shorts"),
-    ("spot_difference",spot_difference,"Spot the Difference Before Time Runs Out 🔎 #Shorts"),
-    ("visual_memory",visual_memory,"Which Tile Vanished? 🧠 #Shorts"),
+    ("memory_shuffle",memory_shuffle,"Can You Follow the Hidden Orb? 🟢 #Shorts",11.0,8.5),
+    ("object_tracking",object_tracking,"Don't Lose the Target 👀 #Shorts",11.0,8.5),
+    ("animated_maze",animated_maze,"Which Signal Reaches the Core? ⚡ #Shorts",10.5,8.0),
+    ("spot_difference",spot_difference,"Spot the Difference Before Time Runs Out 🔎 #Shorts",11.0,8.5),
+    ("visual_memory",visual_memory,"Which Tile Vanished? 🧠 #Shorts",11.5,9.0),
 ]
 bank_b=[
-    ("moving_count",moving_count,"How Many Cyan Orbs Did You Count? 🔵 #Shorts"),
-    ("shadow_match",shadow_match,"Which Shadow Matches? 👤 #Shorts"),
-    ("sequence_next",sequence_next,"What Comes Next? 🧩 #Shorts"),
-    ("color_memory",color_memory,"Which Color Was Third? 🎨 #Shorts"),
-    ("wrong_motion",wrong_motion,"Which Orb Moves the Wrong Way? 👀 #Shorts"),
+    ("moving_count",moving_count,"How Many Cyan Orbs Did You Count? 🔵 #Shorts",11.0,8.5),
+    ("shadow_match",shadow_match,"Which Shadow Matches? 👤 #Shorts",10.5,8.0),
+    ("sequence_next",sequence_next,"What Comes Next? 🧩 #Shorts",10.0,8.0),
+    ("color_memory",color_memory,"Which Color Was Third? 🎨 #Shorts",11.0,8.5),
+    ("wrong_motion",wrong_motion,"Which Orb Moves the Wrong Way? 👀 #Shorts",10.5,8.0),
 ]
 # Odd/even date rotation guarantees that consecutive days use different
 # content families while keeping every daily batch at exactly five Shorts.
@@ -529,15 +542,18 @@ families=bank_a if rotation_bank=="A" else bank_b
 
 names=["short_1_mesmerizing","short_2_optical","short_3_rain","short_4_loop","short_5_experiment"]
 items=[]
-for i,(fam,fn,title) in enumerate(families):
+for i,(fam,fn,title,duration,reveal) in enumerate(families):
     local=SEED+i*7919
-    h=encode(names[i],fn,165+i*21,local)
+    h=encode(names[i],fn,165+i*21,local,duration,reveal)
     items.append({
         "file":names[i]+".mp4",
         "title":title,
         "family":fam,
         "variant":"motion-v6.1-%s"%local,
         "sha256":h,
+        "duration_sec":duration,
+        "reveal_at_sec":reveal,
+        "solve_window_sec":round(reveal-SOLVE_START,2),
         "description":"Solve the animated visual challenge before the reveal. Comment your answer before time runs out. #visualpuzzle #brainteaser #shorts",
         "tags":["visual puzzle","brain teaser","animated puzzle",fam.replace("_"," "),"shorts"]
     })
@@ -548,7 +564,9 @@ manifest={
     "rotation_bank":rotation_bank,
     "resolution":"1080x1920",
     "fps":30,
-    "duration_sec":8,
+    "timing_policy":"family-adaptive-v1",
+    "duration_range_sec":[10.0,11.5],
+    "solve_window_range_sec":[6.85,7.85],
     "shorts":items
 }
 with open(OUT/"manifest.json","w",encoding="utf-8") as f:
