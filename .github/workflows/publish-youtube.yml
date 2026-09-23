@@ -51,7 +51,7 @@ jobs:
           GOT="$(python3 -c 'import json; print(json.load(open("manifest.json")).get("date",""))')"
           test "$GOT" = "$TODAY" || { echo "Release is stale: $GOT, expected $TODAY"; exit 1; }
           STRATEGY="$(python3 -c 'import json; print(json.load(open("manifest.json")).get("strategy",""))')"
-          test "$STRATEGY" = "diversity-v5" || { echo "Refusing non-V5 release: strategy=$STRATEGY"; exit 1; }
+          test "$STRATEGY" = "motion-diversity-v6" || { echo "Refusing non-V6 release: strategy=$STRATEGY"; exit 1; }
           for f in short_1_mesmerizing short_2_optical short_3_rain short_4_loop short_5_experiment; do
             curl -fL --retry 4 "$BASE/$f.mp4" -o "$f.mp4"
           done
