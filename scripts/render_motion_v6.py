@@ -6,7 +6,10 @@ from zoneinfo import ZoneInfo
 
 OUT = Path("outputs/latest")
 OUT.mkdir(parents=True, exist_ok=True)
-W, H, FPS, D = 1080, 1920, 30, 8
+W, H, FPS = 1080, 1920, 30
+SOLVE_START = 1.15
+ACTIVE_DURATION = 11.0
+ACTIVE_REVEAL = 8.5
 DAY = datetime.now(ZoneInfo("Europe/Istanbul"))
 SEED = int(DAY.strftime("%Y%m%d"))
 FONT = cv2.FONT_HERSHEY_SIMPLEX
