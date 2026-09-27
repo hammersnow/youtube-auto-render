@@ -16,6 +16,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: daily-render
@@ -93,6 +94,14 @@ jobs:
           done
           echo "Published manifest did not advance to $TODAY." >&2
           exit 1
+
+      - name: Trigger publisher for new daily release
+        if: steps.preflight.outputs.render == 'true' && github.event_name != 'push'
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh workflow run publish-youtube.yml --ref main
+          echo "Publisher dispatched for the new daily release."
 
       - name: Show public asset URLs
         if: steps.preflight.outputs.render == 'true'
