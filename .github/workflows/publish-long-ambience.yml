@@ -1,0 +1,132 @@
+name: Publish Long Ambience Videos
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-long-ambience-v1
+  cancel-in-progress: false
+
+jobs:
+  render-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+      YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+      YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download licensed real footage and field recordings
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p work output
+          curl --fail --location --retry 5 --retry-all-errors \
+            "https://cdn.pixabay.com/video/2025/03/26/267565_large.mp4" \
+            -o work/fireplace.mp4
+          curl --fail --location --retry 5 --retry-all-errors \
+            "https://cdn.pixabay.com/video/2024/06/19/217379_large.mp4" \
+            -o work/rain-window.mp4
+          curl --fail --location --retry 5 --retry-all-errors \
+            "https://commons.wikimedia.org/wiki/Special:Redirect/file/Campfire_sound_ambience.ogg" \
+            -o work/fireplace.ogg
+          curl --fail --location --retry 5 --retry-all-errors \
+            "https://commons.wikimedia.org/wiki/Special:Redirect/file/Storm_thunderbolts.ogg" \
+            -o work/thunderstorm.ogg
+          ffprobe -v error -show_entries format=duration,size -of default=nw=1 work/fireplace.mp4
+          ffprobe -v error -show_entries format=duration,size -of default=nw=1 work/rain-window.mp4
+          ffprobe -v error -show_entries format=duration,size -of default=nw=1 work/fireplace.ogg
+          ffprobe -v error -show_entries format=duration,size -of default=nw=1 work/thunderstorm.ogg
+
+      - name: Render 35 minute real fireplace ambience
+        shell: bash
+        run: |
+          set -euo pipefail
+          ffmpeg -hide_banner -y \
+            -stream_loop -1 -i work/fireplace.mp4 \
+            -stream_loop -1 -i work/fireplace.ogg \
+            -t 2100 \
+            -filter_complex "[0:v]scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,eq=contrast=1.04:saturation=1.08:brightness=-0.01,fps=30,format=yuv420p[v];[1:a]aformat=channel_layouts=stereo,highpass=f=35,lowpass=f=12000,volume=0.82,afade=t=in:st=0:d=3,afade=t=out:st=2097:d=3[a]" \
+            -map "[v]" -map "[a]" \
+            -c:v libx264 -preset veryfast -crf 23 -maxrate 5M -bufsize 10M -g 60 \
+            -c:a aac -b:a 160k -movflags +faststart -shortest \
+            output/cozy-fireplace-35min.mp4
+
+      - name: Render 35 minute rain on window and thunder ambience
+        shell: bash
+        run: |
+          set -euo pipefail
+          ffmpeg -hide_banner -y \
+            -stream_loop -1 -i work/rain-window.mp4 \
+            -stream_loop -1 -i work/thunderstorm.ogg \
+            -t 2100 \
+            -filter_complex "[0:v]scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,eq=contrast=1.06:saturation=0.88:brightness=-0.035:gamma=0.94,fps=30,format=yuv420p[v];[1:a]aformat=channel_layouts=stereo,highpass=f=28,lowpass=f=13500,volume=0.72,afade=t=in:st=0:d=4,afade=t=out:st=2096:d=4[a]" \
+            -map "[v]" -map "[a]" \
+            -c:v libx264 -preset veryfast -crf 23 -maxrate 5M -bufsize 10M -g 60 \
+            -c:a aac -b:a 160k -movflags +faststart -shortest \
+            output/rain-window-thunder-35min.mp4
+
+      - name: Validate long-form outputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in output/*.mp4; do
+            duration="$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$file")"
+            size="$(stat -c %s "$file")"
+            python3 - "$file" "$duration" "$size" <<'PY'
+          import sys
+          path, duration, size = sys.argv[1], float(sys.argv[2]), int(sys.argv[3])
+          if duration < 2095:
+              raise SystemExit(f"{path}: duration too short: {duration}")
+          if size < 20_000_000:
+              raise SystemExit(f"{path}: file unexpectedly small: {size}")
+          print(f"VALID {path} duration={duration:.2f}s size={size}")
+          PY
+          done
+
+      - name: Publish fireplace video to YouTube
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/youtube_upload.py \
+            output/cozy-fireplace-35min.mp4 \
+            "Cozy Fireplace Ambience 🔥 Real Crackling Fire Sounds | 35 Minutes, No Music" \
+            $'Relax beside a real burning fireplace with natural crackling fire sounds. 35 minutes of cozy ambience for sleep, study, reading, focus or a peaceful background.
+
+No music. No talking. Real footage and real field-recorded fire ambience.
+
+Visual source: “Fire, fireplace, crackling” by BFCMUSIC via Pixabay, used under the Pixabay Content License.
+https://pixabay.com/videos/fire-fireplace-crackling-burning-267565/
+
+Audio: “Campfire sound ambience” by Glaneur de sons, CC BY 3.0. Edited, looped and mixed for this video.
+https://commons.wikimedia.org/wiki/File:Campfire_sound_ambience.ogg
+https://creativecommons.org/licenses/by/3.0/' \
+            "LONG-AMBIENCE:FIREPLACE:2026-09-30:V1" \
+            - \
+            fireplace ambience "crackling fire" "real fireplace" sleep relax study cozy "no music" "fire sounds"
+
+      - name: Publish rain and thunder video to YouTube
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/youtube_upload.py \
+            output/rain-window-thunder-35min.mp4 \
+            "Rain on Window & Thunderstorm 🌧️ Real Storm Sounds | 35 Minutes, No Music" \
+            $'Watch real rain move across a window while distant thunder rolls in the background. 35 minutes of natural storm ambience for sleep, relaxation, study, reading and focus.
+
+No music. No talking. Real footage and real field-recorded thunderstorm audio.
+
+Visual source: “Rain, window, drops” by Alex_Jauk via Pixabay, used under the Pixabay Content License.
+https://pixabay.com/videos/rain-window-drops-weather-water-217379/
+
+Audio: “Storm thunderbolts” by stephan / Jc, released to the public domain. Edited, looped and mixed for this video.
+https://commons.wikimedia.org/wiki/File:Storm_thunderbolts.ogg' \
+            "LONG-AMBIENCE:RAIN-THUNDER:2026-09-30:V1" \
+            - \
+            "rain sounds" thunderstorm "rain on window" sleep relax study ambience "no music" "storm sounds"
