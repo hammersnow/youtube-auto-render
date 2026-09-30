@@ -97,16 +97,7 @@ jobs:
           python3 scripts/youtube_upload.py \
             output/cozy-fireplace-35min.mp4 \
             "Cozy Fireplace Ambience 🔥 Real Crackling Fire Sounds | 35 Minutes, No Music" \
-            $'Relax beside a real burning fireplace with natural crackling fire sounds. 35 minutes of cozy ambience for sleep, study, reading, focus or a peaceful background.
-
-No music. No talking. Real footage and real field-recorded fire ambience.
-
-Visual source: “Fire, fireplace, crackling” by BFCMUSIC via Pixabay, used under the Pixabay Content License.
-https://pixabay.com/videos/fire-fireplace-crackling-burning-267565/
-
-Audio: “Campfire sound ambience” by Glaneur de sons, CC BY 3.0. Edited, looped and mixed for this video.
-https://commons.wikimedia.org/wiki/File:Campfire_sound_ambience.ogg
-https://creativecommons.org/licenses/by/3.0/' \
+            "Real burning fireplace footage with natural crackling fire sounds. 35 minutes for sleep, study, reading, focus or a peaceful background. No music, no talking. Visual: BFCMUSIC via Pixabay Content License (https://pixabay.com/videos/fire-fireplace-crackling-burning-267565/). Audio: Campfire sound ambience by Glaneur de sons, CC BY 3.0 (https://commons.wikimedia.org/wiki/File:Campfire_sound_ambience.ogg). Edited, looped and mixed for this video." \
             "LONG-AMBIENCE:FIREPLACE:2026-09-30:V1" \
             - \
             fireplace ambience "crackling fire" "real fireplace" sleep relax study cozy "no music" "fire sounds"
@@ -118,15 +109,7 @@ https://creativecommons.org/licenses/by/3.0/' \
           python3 scripts/youtube_upload.py \
             output/rain-window-thunder-35min.mp4 \
             "Rain on Window & Thunderstorm 🌧️ Real Storm Sounds | 35 Minutes, No Music" \
-            $'Watch real rain move across a window while distant thunder rolls in the background. 35 minutes of natural storm ambience for sleep, relaxation, study, reading and focus.
-
-No music. No talking. Real footage and real field-recorded thunderstorm audio.
-
-Visual source: “Rain, window, drops” by Alex_Jauk via Pixabay, used under the Pixabay Content License.
-https://pixabay.com/videos/rain-window-drops-weather-water-217379/
-
-Audio: “Storm thunderbolts” by stephan / Jc, released to the public domain. Edited, looped and mixed for this video.
-https://commons.wikimedia.org/wiki/File:Storm_thunderbolts.ogg' \
+            "Real rain moving across a window with distant thunder. 35 minutes for sleep, relaxation, study, reading and focus. No music, no talking. Visual: Alex_Jauk via Pixabay Content License (https://pixabay.com/videos/rain-window-drops-weather-water-217379/). Audio: Storm thunderbolts by stephan / Jc, public domain (https://commons.wikimedia.org/wiki/File:Storm_thunderbolts.ogg). Edited, looped and mixed for this video." \
             "LONG-AMBIENCE:RAIN-THUNDER:2026-09-30:V1" \
             - \
             "rain sounds" thunderstorm "rain on window" sleep relax study ambience "no music" "storm sounds"
