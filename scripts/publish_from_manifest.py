@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from pathlib import Path
 import json, subprocess, sys
 from datetime import datetime, timezone, timedelta
 
@@ -8,8 +9,6 @@ shorts = m.get("shorts", [])
 if not 1 <= len(shorts) <= 5:
     raise SystemExit("manifest must contain between 1 and 5 shorts")
 
-# Istanbul slots. V7 uses three premium uploads/day; legacy counts remain
-# accepted so recovery from an older manifest is still possible.
 slot_map = {
     1: [(15, 0)],
     2: [(12, 0), (17, 0)],
@@ -18,6 +17,21 @@ slot_map = {
     5: [(10, 0), (12, 0), (15, 0), (16, 0), (17, 0)],
 }
 slots = slot_map[len(shorts)]
+
+cfg_path = Path("config/strategy_v7.json")
+if m.get("strategy") == "premium-motion-v7" and cfg_path.exists():
+    cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+    raw_slots = cfg.get("publish_slots_istanbul", [])
+    if len(raw_slots) == len(shorts):
+        parsed = []
+        for value in raw_slots:
+            h, minute = map(int, value.split(":"))
+            if not (0 <= h <= 23 and 0 <= minute <= 59):
+                raise SystemExit("invalid publish slot: " + value)
+            parsed.append((h, minute))
+        slots = parsed
+        print("Using V7 configured publish slots:", raw_slots, flush=True)
+
 now = datetime.now(IST)
 day = datetime.strptime(m["date"], "%Y-%m-%d").date()
 targets = [datetime(day.year, day.month, day.day, h, minute, tzinfo=IST) for h, minute in slots]
