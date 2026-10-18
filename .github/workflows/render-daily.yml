@@ -10,6 +10,7 @@ on:
   push:
     paths:
       - 'scripts/**'
+      - 'config/**'
       - '.github/workflows/render-daily.yml'
 
 permissions:
@@ -58,7 +59,7 @@ jobs:
         run: |
           set -euo pipefail
           rm -rf outputs/latest
-          python3 scripts/render_premium_v7.py
+          python3 scripts/render_premium_v7_runtime.py
           python3 - <<'PY'
           import json
           m=json.load(open('outputs/latest/manifest.json'))
