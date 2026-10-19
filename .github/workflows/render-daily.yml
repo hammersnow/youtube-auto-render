@@ -44,7 +44,9 @@ jobs:
             | python3 -c 'import json,sys; print(json.load(sys.stdin).get("date", ""))' \
             2>/dev/null || true)"
 
-          if [[ "${{ github.event_name }}" == "schedule" && "$CURRENT_DATE" == "$TODAY" ]]; then
+          # Scheduled runs and code pushes are idempotent once today's release exists.
+          # workflow_dispatch remains the explicit force-render path.
+          if [[ ( "${{ github.event_name }}" == "schedule" || "${{ github.event_name }}" == "push" ) && "$CURRENT_DATE" == "$TODAY" ]]; then
             echo "render=false" >> "$GITHUB_OUTPUT"
             echo "Daily release is already current for $TODAY; nothing to do."
             exit 0
@@ -72,7 +74,7 @@ jobs:
           ls -lh outputs/latest
 
       - name: Create or update public latest release
-        if: steps.preflight.outputs.render == 'true'
+        if: steps.preflight.outputs.render == 'true' && github.ref == 'refs/heads/main'
         shell: bash
         run: |
           set -euo pipefail
@@ -89,7 +91,7 @@ jobs:
           gh release upload "$TAG" outputs/latest/*.mp4 outputs/latest/manifest.json --clobber
 
       - name: Verify published daily release
-        if: steps.preflight.outputs.render == 'true'
+        if: steps.preflight.outputs.render == 'true' && github.ref == 'refs/heads/main'
         shell: bash
         run: |
           set -euo pipefail
@@ -117,7 +119,7 @@ jobs:
           echo "Publisher dispatched for the new premium daily release."
 
       - name: Show public asset URLs
-        if: steps.preflight.outputs.render == 'true'
+        if: steps.preflight.outputs.render == 'true' && github.ref == 'refs/heads/main'
         shell: bash
         run: |
           python3 - <<'PY'
