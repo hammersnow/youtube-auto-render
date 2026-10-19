@@ -17,8 +17,10 @@ permissions:
   contents: write
   actions: write
 
+# Keep production/main and R&D branches isolated so a branch push cannot cancel
+# an in-progress daily production render.
 concurrency:
-  group: daily-render
+  group: daily-render-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -44,17 +46,39 @@ jobs:
             | python3 -c 'import json,sys; print(json.load(sys.stdin).get("date", ""))' \
             2>/dev/null || true)"
 
-          # Scheduled runs and code pushes are idempotent once today's release exists.
+          # Production schedule/main pushes are idempotent once today's release exists.
+          # Non-main branch pushes must still render so PR/R&D changes are actually tested.
           # workflow_dispatch remains the explicit force-render path.
-          if [[ ( "${{ github.event_name }}" == "schedule" || "${{ github.event_name }}" == "push" ) && "$CURRENT_DATE" == "$TODAY" ]]; then
+          if [[ "${{ github.event_name }}" == "schedule" && "$CURRENT_DATE" == "$TODAY" ]]; then
             echo "render=false" >> "$GITHUB_OUTPUT"
-            echo "Daily release is already current for $TODAY; nothing to do."
+            echo "Daily release is already current for $TODAY; scheduled render skipped."
+            exit 0
+          fi
+          if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" && "$CURRENT_DATE" == "$TODAY" ]]; then
+            echo "render=false" >> "$GITHUB_OUTPUT"
+            echo "Daily release is already current for $TODAY; main push render skipped."
             exit 0
           fi
 
           echo "render=true" >> "$GITHUB_OUTPUT"
           sudo apt-get update
           sudo apt-get install -y ffmpeg python3-opencv python3-numpy python3-pil fonts-dejavu-core
+
+      - name: Run R&D preview smoke tests
+        if: steps.preflight.outputs.render == 'true' && github.event_name == 'push' && github.ref != 'refs/heads/main'
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          previews=(scripts/rd_v7_*_preview.py)
+          if (( ${#previews[@]} == 0 )); then
+            echo "No R&D preview scripts found."
+            exit 0
+          fi
+          for preview in "${previews[@]}"; do
+            echo "Smoke testing $preview"
+            python3 "$preview"
+          done
 
       - name: Render premium V7 Shorts
         if: steps.preflight.outputs.render == 'true'
