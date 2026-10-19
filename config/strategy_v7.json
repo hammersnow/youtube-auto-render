@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "daily_short_count": 3,
+  "publish_slots_istanbul": ["10:00", "15:00", "17:00"],
+  "proven_weights": {
+    "wrong_motion": 1.30,
+    "animated_maze": 1.30,
+    "memory_shuffle": 1.00,
+    "spot_difference": 1.05
+  },
+  "experiment_weights": {
+    "physics_error": 1.00,
+    "portal_path": 1.00,
+    "laser_core": 1.00
+  },
+  "selection_policy": "2-proven-1-experiment",
+  "min_mature_samples_before_downweight": 2,
+  "notes": "Agent 3 may propose evidence-based weight/slot changes by PR. Never use paid generation services."
+}

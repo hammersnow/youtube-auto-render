@@ -3,15 +3,14 @@ name: Render Daily YouTube Videos
 on:
   workflow_dispatch:
   schedule:
-    # GitHub scheduled runs can be delayed. Three off-the-hour windows make the
-    # daily render resilient; the preflight below keeps them idempotent.
+    # Multiple off-the-hour windows improve resilience; preflight keeps runs idempotent.
     - cron: '17 0 * * *'  # 03:17 Europe/Istanbul
     - cron: '47 2 * * *'  # 05:47 Europe/Istanbul
     - cron: '17 5 * * *'  # 08:17 Europe/Istanbul
   push:
-    # 2026-09-23 one-shot V6 publish trigger; harmless comment only.
     paths:
       - 'scripts/**'
+      - 'config/**'
       - '.github/workflows/render-daily.yml'
 
 permissions:
@@ -20,7 +19,7 @@ permissions:
 
 concurrency:
   group: daily-render
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   render:
@@ -53,14 +52,23 @@ jobs:
 
           echo "render=true" >> "$GITHUB_OUTPUT"
           sudo apt-get update
-          sudo apt-get install -y ffmpeg python3-opencv python3-numpy fonts-dejavu-core
+          sudo apt-get install -y ffmpeg python3-opencv python3-numpy python3-pil fonts-dejavu-core
 
-      - name: Render daily videos
+      - name: Render premium V7 Shorts
         if: steps.preflight.outputs.render == 'true'
         run: |
+          set -euo pipefail
           rm -rf outputs/latest
-          python3 scripts/render_daily.py
-          python3 scripts/render_motion_v6.py
+          python3 scripts/render_premium_v7_runtime.py
+          python3 - <<'PY'
+          import json
+          m=json.load(open('outputs/latest/manifest.json'))
+          assert m.get('strategy') == 'premium-motion-v7', m.get('strategy')
+          assert len(m.get('shorts', [])) == 3, len(m.get('shorts', []))
+          for item in m['shorts']:
+              assert item.get('quality_tier') == 'premium-v7'
+          print('Validated V7 manifest:', [x['family'] for x in m['shorts']])
+          PY
           ls -lh outputs/latest
 
       - name: Create or update public latest release
@@ -71,9 +79,12 @@ jobs:
           TAG="daily-latest"
           DATE="$(date +%F)"
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release edit "$TAG" --title "Daily YouTube Render - $DATE" --notes "Automatically generated free YouTube assets for $DATE (Europe/Istanbul)."
+            gh release edit "$TAG" --title "Daily Premium YouTube Render - $DATE" --notes "Three premium procedural Shorts generated for $DATE (Europe/Istanbul)."
+            gh release view "$TAG" --json assets --jq '.assets[].name' | while read -r asset; do
+              [[ -z "$asset" ]] || gh release delete-asset "$TAG" "$asset" -y || true
+            done
           else
-            gh release create "$TAG" --title "Daily YouTube Render - $DATE" --notes "Automatically generated free YouTube assets for $DATE (Europe/Istanbul)."
+            gh release create "$TAG" --title "Daily Premium YouTube Render - $DATE" --notes "Three premium procedural Shorts generated for $DATE (Europe/Istanbul)."
           fi
           gh release upload "$TAG" outputs/latest/*.mp4 outputs/latest/manifest.json --clobber
 
@@ -85,14 +96,16 @@ jobs:
           TODAY="$(date +%F)"
           URL="https://github.com/${{ github.repository }}/releases/download/daily-latest/manifest.json"
           for attempt in 1 2 3 4 5; do
-            PUBLISHED_DATE="$(curl -fsSL --retry 2 --retry-delay 3 "$URL" \
-              | python3 -c 'import json,sys; print(json.load(sys.stdin).get("date", ""))' \
-              2>/dev/null || true)"
-            [[ "$PUBLISHED_DATE" == "$TODAY" ]] && exit 0
-            echo "Attempt $attempt: expected $TODAY, got ${PUBLISHED_DATE:-unavailable}."
+            read -r PUBLISHED_DATE STRATEGY COUNT < <(
+              curl -fsSL --retry 2 --retry-delay 3 "$URL" | python3 -c 'import json,sys; m=json.load(sys.stdin); print(m.get("date",""),m.get("strategy",""),len(m.get("shorts",[])))' 2>/dev/null || true
+            )
+            if [[ "$PUBLISHED_DATE" == "$TODAY" && "$STRATEGY" == "premium-motion-v7" && "$COUNT" == "3" ]]; then
+              exit 0
+            fi
+            echo "Attempt $attempt: date=${PUBLISHED_DATE:-?} strategy=${STRATEGY:-?} count=${COUNT:-?}"
             sleep 10
           done
-          echo "Published manifest did not advance to $TODAY." >&2
+          echo "Published V7 manifest verification failed." >&2
           exit 1
 
       - name: Trigger publisher for new daily release
@@ -101,15 +114,17 @@ jobs:
         run: |
           set -euo pipefail
           gh workflow run publish-youtube.yml --ref main
-          echo "Publisher dispatched for the new daily release."
+          echo "Publisher dispatched for the new premium daily release."
 
       - name: Show public asset URLs
         if: steps.preflight.outputs.render == 'true'
+        shell: bash
         run: |
-          echo "Short 1: https://github.com/${{ github.repository }}/releases/download/daily-latest/short_1_mesmerizing.mp4"
-          echo "Short 2: https://github.com/${{ github.repository }}/releases/download/daily-latest/short_2_optical.mp4"
-          echo "Short 3: https://github.com/${{ github.repository }}/releases/download/daily-latest/short_3_rain.mp4"
-          echo "Short 4: https://github.com/${{ github.repository }}/releases/download/daily-latest/short_4_loop.mp4"
-          echo "Short 5: https://github.com/${{ github.repository }}/releases/download/daily-latest/short_5_experiment.mp4"
-          echo "Long: https://github.com/${{ github.repository }}/releases/download/daily-latest/long_focus_25min.mp4"
-          echo "Manifest: https://github.com/${{ github.repository }}/releases/download/daily-latest/manifest.json"
+          python3 - <<'PY'
+          import json
+          m=json.load(open('outputs/latest/manifest.json'))
+          base='https://github.com/${{ github.repository }}/releases/download/daily-latest/'
+          for item in m['shorts']:
+              print(item['family']+': '+base+item['file'])
+          print('Manifest: '+base+'manifest.json')
+          PY

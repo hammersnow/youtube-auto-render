@@ -1,8 +1,6 @@
 name: Publish Daily Shorts to YouTube
 
 on:
-  # The render workflow dispatches this only after it actually publishes a new
-  # daily release. Manual dispatch remains available for controlled recovery.
   workflow_dispatch:
 
 permissions:
@@ -37,22 +35,24 @@ jobs:
           set -euo pipefail
           python3 scripts/youtube_analytics_preflight.py
 
-      - name: Download today's rendered Shorts
+      - name: Download today's premium rendered Shorts
         shell: bash
         run: |
           set -euo pipefail
           BASE="https://github.com/${{ github.repository }}/releases/download/daily-latest"
           curl -fsSL --retry 4 "$BASE/manifest.json" -o manifest.json
           TODAY="$(TZ=Europe/Istanbul date +%F)"
-          GOT="$(python3 -c 'import json; print(json.load(open("manifest.json")).get("date",""))')"
+          read -r GOT STRATEGY COUNT < <(python3 -c 'import json; m=json.load(open("manifest.json")); print(m.get("date",""),m.get("strategy",""),len(m.get("shorts",[])))')
           test "$GOT" = "$TODAY" || { echo "Release is stale: $GOT, expected $TODAY"; exit 1; }
-          STRATEGY="$(python3 -c 'import json; print(json.load(open("manifest.json")).get("strategy",""))')"
-          test "$STRATEGY" = "motion-rotation-v6.1" || { echo "Refusing non-V6.1 release: strategy=$STRATEGY"; exit 1; }
-          for f in short_1_mesmerizing short_2_optical short_3_rain short_4_loop short_5_experiment; do
-            curl -fL --retry 4 "$BASE/$f.mp4" -o "$f.mp4"
+          test "$STRATEGY" = "premium-motion-v7" || { echo "Refusing non-V7 release: strategy=$STRATEGY"; exit 1; }
+          test "$COUNT" = "3" || { echo "Expected 3 premium Shorts, got $COUNT"; exit 1; }
+
+          python3 -c 'import json; [print(x["file"]) for x in json.load(open("manifest.json"))["shorts"]]' | while read -r f; do
+            echo "Downloading $f"
+            curl -fL --retry 4 "$BASE/$f" -o "$f"
           done
 
-      - name: Publish five manifest-driven Shorts
+      - name: Publish premium manifest-driven Shorts
         shell: bash
         run: |
           set -euo pipefail
