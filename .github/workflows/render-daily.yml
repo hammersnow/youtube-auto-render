@@ -109,7 +109,7 @@ jobs:
           exit 1
 
       - name: Trigger publisher for new daily release
-        if: steps.preflight.outputs.render == 'true' && github.event_name != 'push'
+        if: steps.preflight.outputs.render == 'true' && github.ref == 'refs/heads/main'
         shell: bash
         run: |
           set -euo pipefail
