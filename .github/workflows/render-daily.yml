@@ -41,10 +41,17 @@ jobs:
         run: |
           set -euo pipefail
           TODAY="$(date +%F)"
-          CURRENT_DATE="$(curl -fsSL --retry 3 --retry-delay 5 \
-            "https://github.com/${{ github.repository }}/releases/download/daily-latest/manifest.json" \
-            | python3 -c 'import json,sys; print(json.load(sys.stdin).get("date", ""))' \
-            2>/dev/null || true)"
+          MANIFEST_URL="https://github.com/${{ github.repository }}/releases/download/daily-latest/manifest.json"
+
+          # Keep the currently published manifest before any new render. The V7
+          # runtime uses it to avoid repeating yesterday's families. On an explicit
+          # same-day repair run it also prevents regenerating the same bad set.
+          if curl -fsSL --retry 3 --retry-delay 5 "$MANIFEST_URL" -o previous_manifest.json; then
+            CURRENT_DATE="$(python3 -c 'import json; print(json.load(open("previous_manifest.json")).get("date", ""))' 2>/dev/null || true)"
+          else
+            rm -f previous_manifest.json
+            CURRENT_DATE=""
+          fi
 
           # Production schedule/main pushes are idempotent once today's release exists.
           # Non-main branch pushes must still render so PR/R&D changes are actually tested.
@@ -85,7 +92,7 @@ jobs:
         run: |
           set -euo pipefail
           rm -rf outputs/latest
-          python3 scripts/render_premium_v7_runtime.py
+          PREVIOUS_MANIFEST=previous_manifest.json python3 scripts/render_premium_v7_runtime.py
           python3 - <<'PY'
           import json
           m=json.load(open('outputs/latest/manifest.json'))
@@ -93,6 +100,15 @@ jobs:
           assert len(m.get('shorts', [])) == 3, len(m.get('shorts', []))
           for item in m['shorts']:
               assert item.get('quality_tier') == 'premium-v7'
+          prev=set()
+          try:
+              p=json.load(open('previous_manifest.json'))
+              prev={x.get('family') for x in p.get('shorts',[]) if x.get('family')}
+          except Exception:
+              pass
+          cur={x.get('family') for x in m['shorts']}
+          if prev and len([x for x in cur if x in prev]) > 1:
+              raise SystemExit('Anti-repeat guard failed: previous=%s current=%s' % (sorted(prev), sorted(cur)))
           print('Validated V7 manifest:', [x['family'] for x in m['shorts']])
           PY
           ls -lh outputs/latest
