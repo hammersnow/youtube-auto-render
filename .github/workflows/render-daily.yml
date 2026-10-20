@@ -30,6 +30,7 @@ jobs:
     env:
       TZ: Europe/Istanbul
       GH_TOKEN: ${{ github.token }}
+      FORCE_RENDER: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[force-render]') }}
 
     steps:
       - name: Checkout
@@ -54,14 +55,13 @@ jobs:
           fi
 
           # Production schedule/main pushes are idempotent once today's release exists.
-          # Non-main branch pushes must still render so PR/R&D changes are actually tested.
-          # workflow_dispatch remains the explicit force-render path.
-          if [[ "${{ github.event_name }}" == "schedule" && "$CURRENT_DATE" == "$TODAY" ]]; then
+          # A manual dispatch or a [force-render] commit explicitly bypasses this guard.
+          if [[ "${{ github.event_name }}" == "schedule" && "$CURRENT_DATE" == "$TODAY" && "$FORCE_RENDER" != "true" ]]; then
             echo "render=false" >> "$GITHUB_OUTPUT"
             echo "Daily release is already current for $TODAY; scheduled render skipped."
             exit 0
           fi
-          if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" && "$CURRENT_DATE" == "$TODAY" ]]; then
+          if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" && "$CURRENT_DATE" == "$TODAY" && "$FORCE_RENDER" != "true" ]]; then
             echo "render=false" >> "$GITHUB_OUTPUT"
             echo "Daily release is already current for $TODAY; main push render skipped."
             exit 0
