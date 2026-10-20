@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 from pathlib import Path
 import json
+import os
 import numpy as np
 import render_premium_v7 as v
 
 CFG_PATH = Path("config/strategy_v7.json")
+PREVIOUS_MANIFEST = Path(os.environ.get("PREVIOUS_MANIFEST", "previous_manifest.json"))
 
 
 def load_config():
@@ -16,8 +18,27 @@ def load_config():
     return cfg
 
 
-def weighted_choice_without_replacement(rng, weights, count):
-    names = [name for name, weight in weights.items() if float(weight) > 0]
+def load_previous_families():
+    if not PREVIOUS_MANIFEST.exists():
+        return set()
+    try:
+        m = json.loads(PREVIOUS_MANIFEST.read_text(encoding="utf-8"))
+        families = {x.get("family") for x in m.get("shorts", []) if x.get("family")}
+        if families:
+            print("Avoiding previous manifest families:", sorted(families))
+        return families
+    except Exception as exc:
+        print("Previous manifest ignored:", exc)
+        return set()
+
+
+def weighted_choice_without_replacement(rng, weights, count, avoid=None):
+    avoid = set(avoid or ())
+    positive = [name for name, weight in weights.items() if float(weight) > 0]
+    preferred = [name for name in positive if name not in avoid]
+    # Prefer a complete fresh set. If strategy weights disable too many families,
+    # gracefully fall back to the full positive pool rather than failing production.
+    names = preferred if len(preferred) >= count else positive
     if len(names) < count:
         raise SystemExit("Not enough positive-weight families in strategy config")
     vals = np.array([float(weights[name]) for name in names], dtype=np.float64)
@@ -39,11 +60,14 @@ def config_selection(seed):
         return v.daily_selection(seed)
     day_index = int(v.DAY.strftime("%j"))
     rng = np.random.default_rng(seed + day_index * 104729)
-    proven = weighted_choice_without_replacement(rng, cfg["proven_weights"], 2)
-    experiment = weighted_choice_without_replacement(rng, cfg["experiment_weights"], 1)
+    previous = load_previous_families()
+    proven = weighted_choice_without_replacement(rng, cfg["proven_weights"], 2, previous)
+    experiment = weighted_choice_without_replacement(rng, cfg["experiment_weights"], 1, previous)
     order = proven + experiment
     shift = day_index % 3
-    return order[shift:] + order[:shift]
+    selected = order[shift:] + order[:shift]
+    print("Selected V7 families:", selected)
+    return selected
 
 
 def main():
