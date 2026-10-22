@@ -11,9 +11,10 @@
   "experiment_weights": {
     "physics_error": 1.00,
     "portal_path": 1.00,
-    "laser_core": 1.00
+    "laser_core": 1.00,
+    "flow_field": 0.55
   },
   "selection_policy": "2-proven-1-experiment",
   "min_mature_samples_before_downweight": 2,
-  "notes": "Agent 3 may propose evidence-based weight/slot changes by PR. Never use paid generation services."
+  "notes": "Evidence-based weight changes use review. Free and open-source generation only."
 }

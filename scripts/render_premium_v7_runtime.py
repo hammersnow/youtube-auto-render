@@ -4,9 +4,16 @@ import json
 import os
 import numpy as np
 import render_premium_v7 as v
+import render_v7_flow_field as flow_field
 
 CFG_PATH = Path("config/strategy_v7.json")
 PREVIOUS_MANIFEST = Path(os.environ.get("PREVIOUS_MANIFEST", "previous_manifest.json"))
+
+# Production registration stays in the runtime layer so the base V7 engine remains stable.
+v.FAMILIES["flow_field"] = (
+    lambda t, seed, frame_idx=0: flow_field.render(t, seed, frame_idx, v),
+    "Which Flow Breaks the Field? 🌊 #Shorts", 9.4, 7.1,
+)
 
 
 def load_config():
@@ -36,8 +43,6 @@ def weighted_choice_without_replacement(rng, weights, count, avoid=None):
     avoid = set(avoid or ())
     positive = [name for name, weight in weights.items() if float(weight) > 0]
     preferred = [name for name in positive if name not in avoid]
-    # Prefer a complete fresh set. If strategy weights disable too many families,
-    # gracefully fall back to the full positive pool rather than failing production.
     names = preferred if len(preferred) >= count else positive
     if len(names) < count:
         raise SystemExit("Not enough positive-weight families in strategy config")
@@ -70,6 +75,19 @@ def config_selection(seed):
     return selected
 
 
+def annotate_manifest(cfg):
+    path = Path("outputs/latest/manifest.json")
+    if not path.exists() or not cfg:
+        return
+    m = json.loads(path.read_text(encoding="utf-8"))
+    experiments = set(cfg.get("experiment_weights", {}))
+    for item in m.get("shorts", []):
+        item["strategy_bucket"] = "experiment" if item.get("family") in experiments else "proven"
+        item["strategy_weight"] = float((cfg.get("experiment_weights", {}) if item["strategy_bucket"] == "experiment" else cfg.get("proven_weights", {})).get(item.get("family"), 0))
+    m["experiment_tracking"] = {"enabled": True, "policy": cfg.get("selection_policy", "2-proven-1-experiment")}
+    path.write_text(json.dumps(m, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
 def main():
     original = v.daily_selection
     try:
@@ -78,6 +96,7 @@ def main():
         if cfg:
             print("Loaded V7 strategy config:", json.dumps(cfg, ensure_ascii=False))
         v.main()
+        annotate_manifest(cfg)
     finally:
         v.daily_selection = original
 
