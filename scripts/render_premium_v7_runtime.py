@@ -5,6 +5,7 @@ import os
 import numpy as np
 import render_premium_v7 as v
 import render_v7_flow_field as flow_field
+import render_v7_puzzle_quality as puzzle_quality
 
 CFG_PATH = Path("config/strategy_v7.json")
 PREVIOUS_MANIFEST = Path(os.environ.get("PREVIOUS_MANIFEST", "previous_manifest.json"))
@@ -13,6 +14,17 @@ PREVIOUS_MANIFEST = Path(os.environ.get("PREVIOUS_MANIFEST", "previous_manifest.
 v.FAMILIES["flow_field"] = (
     lambda t, seed, frame_idx=0: flow_field.render(t, seed, frame_idx, v),
     "Which Flow Breaks the Field? 🌊 #Shorts", 9.4, 7.1,
+)
+
+# Puzzle-quality hotfixes. These override only the affected families and keep
+# the proven V7 base renderer unchanged for easy rollback.
+v.FAMILIES["spot_difference"] = (
+    lambda t, seed, frame_idx=0: puzzle_quality.spot_difference(t, seed, frame_idx, v),
+    "Spot the Moving Difference 🔎 #Shorts", 9.6, 7.25,
+)
+v.FAMILIES["laser_core"] = (
+    lambda t, seed, frame_idx=0: puzzle_quality.laser_core(t, seed, frame_idx, v),
+    "Which Laser Hits the Core? 🔺 #Shorts", 9.4, 7.1,
 )
 
 
@@ -84,13 +96,17 @@ def annotate_manifest(cfg):
     for item in m.get("shorts", []):
         item["strategy_bucket"] = "experiment" if item.get("family") in experiments else "proven"
         item["strategy_weight"] = float((cfg.get("experiment_weights", {}) if item["strategy_bucket"] == "experiment" else cfg.get("proven_weights", {})).get(item.get("family"), 0))
+        if item.get("family") in {"spot_difference", "laser_core"}:
+            item["puzzle_quality_gate"] = "v2-validity-guarded"
     m["experiment_tracking"] = {"enabled": True, "policy": cfg.get("selection_policy", "2-proven-1-experiment")}
+    m["puzzle_quality_gate"] = {"enabled": True, "version": "v2"}
     path.write_text(json.dumps(m, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def main():
     original = v.daily_selection
     try:
+        puzzle_quality.quality_self_test()
         v.daily_selection = config_selection
         cfg = load_config()
         if cfg:
