@@ -87,8 +87,11 @@ jobs:
             python3 "$preview"
           done
 
+      # Full production rendering is main-only. Branch pushes are intentionally
+      # preview/smoke-only so R&D and agent PRs cannot burn CPU rendering a full
+      # daily batch or accidentally behave like production.
       - name: Render premium V7 Shorts
-        if: steps.preflight.outputs.render == 'true'
+        if: steps.preflight.outputs.render == 'true' && github.ref == 'refs/heads/main'
         run: |
           set -euo pipefail
           rm -rf outputs/latest
