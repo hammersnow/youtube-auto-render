@@ -21,11 +21,12 @@ def _spot_motion(idx, t, bad=False):
 
     # The anomaly is positional + temporal, so it remains visible for every
     # glyph type (including circles/squares/plus signs where rotation alone
-    # would be invisible).
+    # would be invisible). The 24 px anomaly amplitude keeps a healthy phone-
+    # size perceptibility margin without making the answer obvious immediately.
     anomaly = max(0.0, min(1.0, (t - 0.55) / 0.85))
     anomaly = anomaly * anomaly * (3.0 - 2.0 * anomaly)
-    dx2 = -18.0 * math.sin(t * 2.60 + phase)
-    dy2 = 18.0 * math.cos(t * 2.10 + phase + 0.80)
+    dx2 = -24.0 * math.sin(t * 2.60 + phase)
+    dy2 = 24.0 * math.cos(t * 2.10 + phase + 0.80)
     pulse2 = 1.0 + 0.17 * math.sin(t * 3.00 + phase + math.pi)
     rot2 = rot - 52.0 * math.sin(t * 2.25 + phase)
     return (
@@ -190,7 +191,7 @@ def quality_self_test():
         l = _spot_motion(bad, 2.35, False)
         r = _spot_motion(bad, 2.35, True)
         delta = math.hypot(l[0] - r[0], l[1] - r[1])
-        assert delta >= 15.0, ("spot difference too subtle", seed, delta)
+        assert delta >= 18.0, ("spot difference too subtle", seed, delta)
         for idx in (0, 5, 11, 23):
             if idx == bad:
                 continue
