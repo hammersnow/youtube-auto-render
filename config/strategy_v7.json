@@ -6,15 +6,15 @@
     "wrong_motion": 1.30,
     "animated_maze": 1.30,
     "memory_shuffle": 1.00,
-    "spot_difference": 1.05
+    "spot_difference": 0.85
   },
   "experiment_weights": {
     "physics_error": 1.00,
     "portal_path": 1.00,
-    "laser_core": 1.00,
+    "laser_core": 0.55,
     "flow_field": 0.55
   },
   "selection_policy": "2-proven-1-experiment",
   "min_mature_samples_before_downweight": 2,
-  "notes": "Evidence-based weight changes use review. Free and open-source generation only."
+  "notes": "Evidence-based weight changes use review. Free and open-source generation only. spot_difference and laser_core use puzzle-validity v2 guards; weights are conservative until post-fix Analytics matures."
 }
