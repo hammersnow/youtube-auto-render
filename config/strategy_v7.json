@@ -1,20 +1,20 @@
 {
-  "version": 1,
+  "version": 2,
   "daily_short_count": 3,
   "publish_slots_istanbul": ["10:00", "14:00", "16:00"],
   "proven_weights": {
     "wrong_motion": 1.30,
-    "animated_maze": 1.30,
+    "signal_core_v2": 0.80,
     "memory_shuffle": 1.00,
-    "spot_difference": 0.85
+    "spot_difference_v2": 0.65
   },
   "experiment_weights": {
     "physics_error": 1.00,
-    "portal_path": 1.00,
+    "portal_path_v2": 0.65,
     "laser_core": 0.55,
     "flow_field": 0.55
   },
   "selection_policy": "2-proven-1-experiment",
   "min_mature_samples_before_downweight": 2,
-  "notes": "Evidence-based weight changes use review. Free and open-source generation only. spot_difference and laser_core use puzzle-validity v2 guards; weights are conservative until post-fix Analytics matures. Publish-slot recovery test started 2026-10-29: 10:00/14:00/16:00 Europe/Istanbul; hold duration/content timing constant while measuring slot impact."
+  "notes": "Legacy spot_difference, portal_path and animated_maze cohorts are retired from weighted production selection after human review found imperceptible/repetitive/obvious-answer failures. Versioned V2 replacements use puzzle-quality v3 human-perceptibility guards. Publish-slot recovery test remains 10:00/14:00/16:00 Europe/Istanbul; duration/reveal timing stays unchanged while slot impact is measured."
 }
