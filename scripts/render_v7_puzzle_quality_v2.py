@@ -15,7 +15,12 @@ def _spot_motion(idx,t,bad=False):
     pulse=1+.06*math.sin(t*2.8+ph); rot=t*24+idx*11
     if not bad: return dx,dy,pulse,rot
     a=_smooth((t-.70)/.75)
-    dx2=52*math.sin(t*2.10+ph+.85); dy2=42*math.cos(t*2.55+ph-.55)
+    # Keep the opening identical, then force a sustained, phone-visible path
+    # separation. Most of the anomaly is vertical so 4-column glyphs cannot
+    # collide horizontally; row parity flips direction to avoid a fixed visual.
+    sign=1.0 if (idx//4)%2==0 else -1.0
+    dx2=26*math.sin(t*2.10+ph+.85)
+    dy2=30*math.cos(t*2.55+ph-.55)+sign*55
     p2=1+.14*math.sin(t*3.25+ph+math.pi); r2=rot+38*math.sin(t*1.85+ph)
     return dx*(1-a)+dx2*a,dy*(1-a)+dy2*a,pulse*(1-a)+p2*a,rot*(1-a)+r2*a
 
@@ -154,7 +159,7 @@ def quality_self_test():
         bad=seed%16; ds=[]
         for t in times:
             a=_spot_motion(bad,t,False); b=_spot_motion(bad,t,True); ds.append(math.hypot(a[0]-b[0],a[1]-b[1]))
-        assert max(ds)>=45 and sum(ds)/len(ds)>=28,("spot-too-subtle",seed,ds)
+        assert min(ds)>=20 and max(ds)>=70 and sum(ds)/len(ds)>=45,("spot-too-subtle",seed,ds)
     sigs=set(); exits=set()
     for seed in range(32):
         pts,chain=_portal_plan(seed); assert len(chain)==5 and len(set(chain))==5
