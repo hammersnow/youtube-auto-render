@@ -33,7 +33,7 @@ scene.render.resolution_y = args.height
 scene.render.resolution_percentage = 100
 scene.render.film_transparent = False
 scene.render.image_settings.file_format = "PNG"
-scene.render.filepath = args.output + "/frame_"
+scene.render.filepath = args.output
 scene.render.file_extension = ".png"
 scene.render.fps = args.fps
 scene.render.fps_base = 1
@@ -182,7 +182,7 @@ for xx,mm in [(-.32,blue),(.32,red)]:
 # Animated true slider crank and connecting rod, not approximated linear piston motion.
 crank_radius = .42
 rod_length = 1.13
-rod = link("Connecting rod", (0,0,.1), (0,0,1), .077, gold)
+rod = link("Connecting rod", (0,0,0), (0,0,rod_length), .077, gold)
 arm = link("Crankshaft throw", (0,-.18,0), (.04,-.18,.4), .105, gold)
 pin = sphere("Rotating crank pin", (.01,-.18,.42), .135, piston_mat, 20,12)
 piston_pin = sphere("Piston pin",(0,-.22,1.2),.09,gold)
