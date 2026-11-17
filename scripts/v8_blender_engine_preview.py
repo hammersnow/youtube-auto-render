@@ -34,7 +34,6 @@ scene.render.resolution_percentage = 100
 scene.render.film_transparent = False
 scene.render.image_settings.file_format = "PNG"
 scene.render.filepath = args.output
-scene.render.file_extension = ".png"
 scene.render.fps = args.fps
 scene.render.fps_base = 1
 scene.frame_start = 1
