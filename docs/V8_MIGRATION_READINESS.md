@@ -41,3 +41,12 @@ This PR MUST stay draft and must not auto-merge.
 2. Produce and visually review the physics/marble pilot.
 3. Build V8 manifest schema and 2-item publisher; add idempotency and rollback tests; branch CI without release/upload permissions.
 4. Present both outputs to owner; only after explicit start approval perform production switch.
+
+## Blender headless benchmark — measured 2026-11-17
+- **Confirmed**: PR #25 branch-only Blender 4.0.2 on Ubuntu 24.04 installed successfully. Blender Cycles CPU generated 72 real 3D frames and FFmpeg produced an H.264 MP4. Workflow run: https://github.com/hammersnow/youtube-auto-render/actions/runs/44123480514
+- Output **6.0s, 360x640, 12fps, 8 samples, 2 CPU threads**, wall **2m26.66s** for Blender render. 72/72 frames decoded; final MP4 verified with ffprobe. GitHub artifact id 14346193460 (7-day retention).
+- Ubuntu packaged Blender has **no OpenImageDenoiser**; enabling Cycles denoising fails. Preview renders without denoiser, with noticeable noise. Do not claim footage is photorealistic or final quality.
+- Human visual review: piston + connecting rod + crankshaft are visible, 720-degree four-stroke cycle and separated valve events implemented. Intake/exhaust particles currently follow stylized external guide paths rather than physically visualizing gas moving inside the cylinder. Spark has no combustion pressure visualization. **NOT publication ready**.
+- User watermark `Ekrem Gökberk İşcan` and English staged captions are present; preview has **no audio**.
+- A naive proportional extrapolation of this benchmark to 1080x1920, 26 seconds is excessive for a short free CI render (~95 min, assuming near-linear pixel/frame scaling). This is **not a measured full-HD runtime**, only a warning estimate. Evaluate alternative engines/faster frame synthesis before production integration.
+- Next QA: verify robust headless Eevee/Workbench fallback or higher-efficiency Cycles settings, improve narrative explanation and physically meaningful flow, sound/voiceover, produce full phone-quality preview, then request owner approval. Keep main/V7/daily-latest unchanged.
