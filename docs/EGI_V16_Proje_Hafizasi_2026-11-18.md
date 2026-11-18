@@ -46,7 +46,7 @@
 - `config/egi_episode_catalog.json` — EGI benzersiz bölüm takvimi; günlük maks. 2.
 - `scripts/render_egi_daily.py` — bölüm seçimi + render + ffprobe ve SHA-256 kalite/manifest üretimi.
 - `scripts/publish_egi_from_manifest.py` — EGI manifest ve SHA doğrulaması, UTC yayın planı, bölüm işaretleri.
-- `scripts/youtube_upload.py` — `EXPECTED_YOUTUBE_CHANNEL_ID=UCNNyhE1DlhTXIip_p96kczA` ayarlıysa yükleme öncesi hedef kanalı doğrular; uyuşmazlıkta upload durur. Geçişte bu koruma eklendi.
+- `scripts/youtube_upload.py` — `EXPECTED_YOUTUBE_CHANNEL_ID=UCNNyhE1DlhTXIip_p96kczA` ayarlıysa yükleme öncesi hedef kanalı doğrular; uyuşmazlıkta upload durur. EGI videoları YouTube **Science & Technology (kategori 28)** olarak etiketlenir.
 - `.github/workflows/egi-daily.yml` — günlük EGI üretim; ayrı `egi-daily-latest` release; kontrol sonrası publisher dispatch.
 - `.github/workflows/publish-youtube.yml` — sadece EGI içeriğine izin veren yayın workflow'u (PR #27 değişikliği).
 - `.github/workflows/render-daily.yml` — V7 cron'unu kaldıran **retired** stub (PR #27 değişikliği).
