@@ -53,7 +53,7 @@ def upload(p,t,d,tags,m,pub):
  d=d+"\n\n"+m
  s={"privacyStatus":"private" if pub else "public","selfDeclaredMadeForKids":False}
  if pub:s["publishAt"]=pub
- meta={"snippet":{"title":t,"description":d,"tags":tags,"categoryId":"24"},"status":s}
+ meta={"snippet":{"title":t,"description":d,"tags":tags,"categoryId":"28" if expected else "24"},"status":s}
  req=urllib.request.Request(UPLOAD_URL,data=json.dumps(meta).encode(),method="POST",headers={"Authorization":"Bearer "+a,"Content-Type":"application/json; charset=UTF-8","X-Upload-Content-Type":"video/mp4","X-Upload-Content-Length":str(Path(p).stat().st_size)})
  with api(req) as r:loc=r.headers["Location"]
  with api(urllib.request.Request(loc,data=Path(p).read_bytes(),method="PUT",headers={"Authorization":"Bearer "+a,"Content-Type":"video/mp4"})) as r:res=json.load(r)
