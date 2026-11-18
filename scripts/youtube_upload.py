@@ -38,6 +38,13 @@ def existing_markers(a,markers):
 
 def upload(p,t,d,tags,m,pub):
  a=token()
+ expected=os.environ.get("EXPECTED_YOUTUBE_CHANNEL_ID","").strip()
+ if expected:
+  q=urllib.parse.urlencode({"part":"id","mine":"true"})
+  ch=get_json(API_ROOT+"/channels?"+q,a)
+  actual=[item.get("id") for item in ch.get("items",[])]
+  if actual != [expected]:
+   raise RuntimeError("EGI channel identity mismatch: refusing upload (expected %s, actual %s)"%(expected,actual))
  markers=[line.strip() for line in m.splitlines() if line.strip()]
  found=existing_markers(a,markers)
  if found:
