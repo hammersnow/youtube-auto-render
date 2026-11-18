@@ -19,6 +19,7 @@ jobs:
       YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
       YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
       YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+      EXPECTED_YOUTUBE_CHANNEL_ID: UCNNyhE1DlhTXIip_p96kczA
     steps:
       - uses: actions/checkout@v4
       - name: Verify existing YouTube OAuth secrets
