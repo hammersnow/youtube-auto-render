@@ -1,0 +1,78 @@
+name: EGI Production Cutover Test (NO PUBLISH)
+
+on:
+  push:
+    branches:
+      - egi-v16-production-cutover-20261118
+    paths:
+      - 'egi_preview/**'
+      - 'config/egi_episode_catalog.json'
+      - 'scripts/render_egi_daily.py'
+      - 'scripts/publish_egi_from_manifest.py'
+      - '.github/workflows/egi-production-cutover-qa.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  dry-run:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      TZ: Europe/Istanbul
+      EGI_OUTPUT_DIR: ${{ github.workspace }}/outputs/egi_daily
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install test dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg fonts-dejavu-core
+          python3 -m pip install --disable-pip-version-check 'numpy==2.3.5' 'Pillow==12.0.0'
+          python3 -m compileall -q egi_preview scripts/render_egi_daily.py scripts/publish_egi_from_manifest.py
+      - name: Test event ownership and both daily catalogs
+        run: |
+          set -euo pipefail
+          python3 egi_preview/qa_v16.py
+          python3 scripts/render_egi_daily.py --day 2026-11-19 --check-only
+          python3 scripts/render_egi_daily.py --day 2026-11-20 --check-only
+          if python3 scripts/render_egi_daily.py --day 2026-11-21 --check-only; then
+            echo "Unexpected repeat content on an unscheduled day" >&2
+            exit 1
+          fi
+      - name: Render and ffprobe both original V16 pilots - NO UPLOAD
+        run: python3 scripts/render_egi_daily.py --day 2026-11-19
+      - name: Verify first manifest and independent video hashes
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          m=json.load(open('outputs/egi_daily/manifest.json'))
+          assert m['date']=='2026-11-19' and len(m['shorts'])==2,m
+          assert {x['family'] for x in m['shorts']}=={'software','technology'}
+          print('FIRST_DAY_QA_PASS', [(x['episode_id'],x['sha256'][:12]) for x in m['shorts']])
+          PY
+      - name: Render previously reviewed turbo and intercooler - NO UPLOAD
+        run: python3 scripts/render_egi_daily.py --day 2026-11-20
+      - name: Verify mechanical manifest and sound
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          m=json.load(open('outputs/egi_daily/manifest.json'))
+          assert m['date']=='2026-11-20' and len(m['shorts'])==2,m
+          assert {x['family'] for x in m['shorts']}=={'mechanics'}
+          assert len({x['sha256'] for x in m['shorts']})==2
+          print('SECOND_DAY_QA_PASS')
+          PY
+      - name: Store source-independent samples (NOT release)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: egi-cutover-dry-run
+          retention-days: 7
+          if-no-files-found: warn
+          path: |
+            outputs/egi_daily/*.mp4
+            outputs/egi_daily/*.json
+            outputs/egi_daily/*_Storyboard.jpg
