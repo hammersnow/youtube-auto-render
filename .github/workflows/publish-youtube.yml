@@ -1,4 +1,4 @@
-name: Publish Daily Shorts to YouTube
+name: Publish Verified EGI Shorts to YouTube
 
 on:
   workflow_dispatch:
@@ -12,16 +12,17 @@ concurrency:
 
 jobs:
   publish:
-    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
       YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
       YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
       YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+      EXPECTED_YOUTUBE_CHANNEL_ID: UCNNyhE1DlhTXIip_p96kczA
     steps:
       - uses: actions/checkout@v4
-
-      - name: Verify OAuth secrets
+      - name: Verify existing YouTube OAuth secrets
         shell: bash
         run: |
           set -euo pipefail
@@ -29,31 +30,32 @@ jobs:
           test -n "$YOUTUBE_CLIENT_SECRET"
           test -n "$YOUTUBE_REFRESH_TOKEN"
 
-      - name: Analyze previous performance before publishing
+      - name: Download and strictly validate today's EGI manifest and videos
         shell: bash
         run: |
           set -euo pipefail
-          python3 scripts/youtube_analytics_preflight.py
-
-      - name: Download today's premium rendered Shorts
-        shell: bash
-        run: |
-          set -euo pipefail
-          BASE="https://github.com/${{ github.repository }}/releases/download/daily-latest"
+          BASE="https://github.com/${{ github.repository }}/releases/download/egi-daily-latest"
           curl -fsSL --retry 4 "$BASE/manifest.json" -o manifest.json
           TODAY="$(TZ=Europe/Istanbul date +%F)"
-          read -r GOT STRATEGY COUNT < <(python3 -c 'import json; m=json.load(open("manifest.json")); print(m.get("date",""),m.get("strategy",""),len(m.get("shorts",[])))')
-          test "$GOT" = "$TODAY" || { echo "Release is stale: $GOT, expected $TODAY"; exit 1; }
-          test "$STRATEGY" = "premium-motion-v7" || { echo "Refusing non-V7 release: strategy=$STRATEGY"; exit 1; }
-          test "$COUNT" = "3" || { echo "Expected 3 premium Shorts, got $COUNT"; exit 1; }
-
-          python3 -c 'import json; [print(x["file"]) for x in json.load(open("manifest.json"))["shorts"]]' | while read -r f; do
-            echo "Downloading $f"
+          python3 - "$TODAY" <<'PY'
+          import json,sys
+          m=json.load(open('manifest.json'))
+          assert m.get('brand')=='EGI' and m.get('strategy')=='egi-premium-v16'
+          assert m.get('publish_enabled') is True
+          assert m.get('date')==sys.argv[1], (m.get('date'),sys.argv[1])
+          shorts=m.get('shorts',[])
+          assert 1<=len(shorts)<=2
+          assert len({x['episode_id'] for x in shorts})==len(shorts)
+          assert len({x['sha256'] for x in shorts})==len(shorts)
+          print('EGI_MANIFEST_PUBLISH_QA_OK:',[x['episode_id'] for x in shorts])
+          PY
+          python3 -c 'import json; [print(x["file"]) for x in json.load(open("manifest.json"))["shorts"]]' | while IFS= read -r f; do
+            [[ "$f" =~ ^EGI_[A-Za-z0-9_]+\.mp4$ ]] || { echo "Unsafe filename: $f"; exit 1; }
             curl -fL --retry 4 "$BASE/$f" -o "$f"
           done
 
-      - name: Publish premium manifest-driven Shorts
+      - name: Publish EGI manifest-driven episodes (duplicate protected)
         shell: bash
         run: |
           set -euo pipefail
-          python3 scripts/publish_from_manifest.py
+          python3 scripts/publish_egi_from_manifest.py

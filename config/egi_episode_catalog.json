@@ -1,0 +1,77 @@
+{
+  "version": 1,
+  "brand": "EGI",
+  "strategy": "egi-premium-v16",
+  "language": "en",
+  "timezone": "Europe/Istanbul",
+  "publish_enabled": true,
+  "max_daily_shorts": 2,
+  "rule": "Each approved episode_id may occur only once across the catalog. No retries as new uploads, no repeat filler; quality over quota.",
+  "schedule": {
+    "2026-11-19": [
+      {
+        "id": "egi-url-journey-v16",
+        "category": "software",
+        "renderer": "v16-software",
+        "title": "What Really Happens When You Open a Website? 🌐 #Shorts",
+        "description": "From typing a URL to DNS, TCP, TLS, HTTP, then separate HTML, CSS and JavaScript resources reaching your browser. Original procedural animation by EGI. Simplified technical illustration. #Networking #Programming #Technology #EGI",
+        "tags": [
+          "networking",
+          "DNS",
+          "TCP",
+          "TLS",
+          "HTTP",
+          "HTML",
+          "CSS",
+          "JavaScript",
+          "technology",
+          "shorts"
+        ]
+      },
+      {
+        "id": "egi-wireless-charging-v16",
+        "category": "technology",
+        "renderer": "v16-technology",
+        "title": "How Wireless Charging Actually Works ⚡ #Shorts",
+        "description": "Watch alternating current, magnetic induction, receiver coils, rectification and regulated DC charging in an original schematic animation by EGI. #WirelessCharging #Technology #Science #EGI",
+        "tags": [
+          "wireless charging",
+          "electromagnetic induction",
+          "technology",
+          "science",
+          "shorts"
+        ]
+      }
+    ],
+    "2026-11-20": [
+      {
+        "id": "egi-turbo-v89",
+        "category": "mechanics",
+        "renderer": "turbo",
+        "title": "How a Turbocharger Turns Exhaust Into Boost 🔥 #Shorts",
+        "description": "Two separate air streams, two wheels, one shaft. See how exhaust energy drives a compressor in an original stylized 2.5D engineering cutaway from EGI. #Engineering #Turbo #Automotive #EGI",
+        "tags": [
+          "turbocharger",
+          "engineering",
+          "mechanics",
+          "automotive",
+          "shorts"
+        ]
+      },
+      {
+        "id": "egi-intercooler-v91",
+        "category": "mechanics",
+        "renderer": "intercooler",
+        "title": "Why a Turbo Engine Needs an Intercooler ❄️ #Shorts",
+        "description": "Hot boost travels through an intercooler core, transfers heat to fins and emerges cooler and denser. A stylized air-to-air intercooler cutaway from EGI. #Intercooler #Engineering #Automotive #EGI",
+        "tags": [
+          "intercooler",
+          "engine",
+          "technology",
+          "mechanics",
+          "shorts"
+        ]
+      }
+    ]
+  }
+}

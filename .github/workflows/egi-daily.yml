@@ -1,0 +1,124 @@
+name: EGI Daily Original Shorts (2 MAX)
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 0 * * *' # 03:17 Europe/Istanbul (UTC+3)
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: egi-original-daily-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  render-and-release:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      TZ: Europe/Istanbul
+      GH_TOKEN: ${{ github.token }}
+      EGI_OUTPUT_DIR: ${{ github.workspace }}/outputs/egi_daily
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check unique approved episode catalog (no repeat filler)
+        id: selection
+        shell: bash
+        run: |
+          set -euo pipefail
+          if python3 scripts/render_egi_daily.py --check-only; then
+            echo "eligible=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "eligible=false" >> "$GITHUB_OUTPUT"
+            echo "No new EGI episode scheduled today: no render, no release, no YouTube upload."
+          fi
+
+      - name: Install free Python renderer and FFmpeg
+        if: steps.selection.outputs.eligible == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg fonts-dejavu-core
+          python3 -m pip install --disable-pip-version-check 'numpy==2.3.5' 'Pillow==12.0.0'
+
+      - name: Render approved EGI episodes and verify media
+        if: steps.selection.outputs.eligible == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 egi_preview/qa_v16.py
+          python3 scripts/render_egi_daily.py
+          python3 - <<'PY'
+          import json
+          m=json.load(open('outputs/egi_daily/manifest.json'))
+          assert m['strategy']=='egi-premium-v16' and m['publish_enabled']
+          assert 1<=len(m['shorts'])<=2
+          assert len({x['episode_id'] for x in m['shorts']})==len(m['shorts'])
+          print('EGI_BATCH_QA_OK',[(x['episode_id'],x['sha256'][:12]) for x in m['shorts']])
+          PY
+
+      - name: Create isolated EGI release, never overwrite V7 daily-latest
+        if: steps.selection.outputs.eligible == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG=egi-daily-latest
+          TODAY="$(TZ=Europe/Istanbul date +%F)"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --title "EGI Original Shorts - $TODAY" --notes "Reviewed, unique, max two Shorts; EGI V16."
+            gh release view "$TAG" --json assets --jq '.assets[].name' | while IFS= read -r asset; do
+              test -z "$asset" || gh release delete-asset "$TAG" "$asset" -y
+            done
+          else
+            gh release create "$TAG" --title "EGI Original Shorts - $TODAY" --notes "Reviewed, unique, max two Shorts; EGI V16." --latest=false
+          fi
+          python3 - <<'PY' > /tmp/egi-file-list
+          import json
+          m=json.load(open('outputs/egi_daily/manifest.json'))
+          print('outputs/egi_daily/manifest.json')
+          for item in m['shorts']: print('outputs/egi_daily/'+item['file'])
+          PY
+          mapfile -t ASSETS < /tmp/egi-file-list
+          gh release upload "$TAG" "${ASSETS[@]}" --clobber
+
+      - name: Verify release and dispatch EGI-only YouTube publisher
+        if: steps.selection.outputs.eligible == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://github.com/${{ github.repository }}/releases/download/egi-daily-latest"
+          TODAY="$(TZ=Europe/Istanbul date +%F)"
+          for i in 1 2 3 4 5; do
+            if curl -fsSL --retry 2 "$BASE/manifest.json" -o /tmp/egi-release.json; then
+              if python3 - "$TODAY" <<'PY'
+          import json,sys
+          m=json.load(open('/tmp/egi-release.json'))
+          assert m['date']==sys.argv[1] and m['strategy']=='egi-premium-v16'
+          assert m['publish_enabled'] is True and 1<=len(m['shorts'])<=2
+          PY
+              then
+                gh workflow run publish-youtube.yml --ref main
+                echo "EGI_PUBLISHER_DISPATCHED"
+                exit 0
+              fi
+            fi
+            sleep 10
+          done
+          echo "Release did not verify; REFUSING YOUTUBE DISPATCH" >&2
+          exit 1
+
+      - name: Keep short-term render evidence
+        if: always() && steps.selection.outputs.eligible == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: egi-daily-render-qa
+          if-no-files-found: warn
+          retention-days: 7
+          path: |
+            outputs/egi_daily/manifest.json
+            outputs/egi_daily/*_Storyboard.jpg
