@@ -68,7 +68,7 @@
 | 20 Kasım 2026 | Intercooler nasıl çalışır | Mekanik | V9.1 kaynaklı pilot |
 
 - Günlük slotlar katalogdaki bölüm sayısına göre **12:00 / 17:00**, tek video günlerinde **15:00**, Europe/Istanbul. Zaman geçmişse yayıncı güvenli ileri saate planlar.
-- 21 Kasım 2026 ve sonrası için henüz **onaylı yeni bölüm yoksa sistem sessiz kalmalı**. Asla aynı dosyayı yeni bölüm gibi tekrar yayımlama.
+- 21 Kasım 2026 ve sonrası için henüz **onaylı yeni bölüm yoksa sistem sessiz kalmalı**. Creative R&D ajanı yeni özgün video + katalog PR’ları hazırlar; Reviewer yalnız görsel/teknik QA’yı karşılayanları merge edebilir. Bu otomatik süreç iyi niyetli hedef olup **gelecekte her gün video üretileceğinin garantisi değildir**. Asla aynı dosyayı yeni bölüm gibi tekrar yayımlama.
 - Motor V8.8, diferansiyel V12, diğer test klipleri korunur; ancak **bu ilk katalogda yoktur**. Yeni katalog girdisi, orijinal renderer + görsel inceleme + QA ile eklenmelidir.
 - Önceki V7 `daily-latest` release etiketi ile EGI `egi-daily-latest` **ayrıdır**. Yanlış etiketten içerik çekmek yasak.
 
@@ -78,9 +78,9 @@ Eski V7 puzzle odaklı beş aktif otomasyonun adları/promptları **EGI'ye çevr
 
 - `EGI · Analytics & Strateji` — yaş-eşlemeli 24/48/72 saat ve 7 gün raporu, gerçek kanıt ve format kıyaslaması.
 - `EGI · Trend Scout` — yazılım/teknoloji/mekanik alanında güncel özgün İngilizce fikirler ve mikro animasyon planı.
-- `EGI · Creative R&D` — açık kaynak prosedürel hareket, ses/ikon/kalite geliştirme; yalnızca izolasyonlu PR.
+- `EGI · Creative R&D` — açık kaynak prosedürel hareket, ses/ikon/kalite geliştirme; **haftada iki planlı çalışmada** farklı özgün bölüm renderer + yeni episode catalog girdisi içeren izolasyonlu PR açabilir. Kalite uygun değilse sayıyı zorlamaz.
 - `EGI · Sistem Denetimi` — günlük EGI release, manifest, YouTube doğrulama, SHA, eksik bölüm/no-filler, legacy cron kapalı mı.
-- `EGI · Reviewer & Integrator` — tek olay/callout, mobil taşma, semantik kaynak, QA, PR review; onaysız yayın yapmaz.
+- `EGI · Reviewer & Integrator` — tek olay/callout, mobil taşma, semantik kaynak, tam MP4 önizlemesi ve QA kontrolü; EGI V16 standardında tamamen yeni bölüm PR’larını **görsel + teknik test kanıtıyla** ve önceden onaylanmış format içinde kaldığında güvenle main’e merge edebilir. Yayın/OAuth/cron/kanal gibi çekirdek sistem değişikliklerinde ayrıca kullanıcı onayı gerekir; kendisi upload başlatmaz.
 
 **Geçiş sırasında bu beş ajan geçici olarak durduruldu; PR #27 merge ve QA sonrası 18 Kasım’da beşi de yeniden etkinleştirildi.** Eski puzzle görevlerini açma. Ajanların etkinlik durumunu gerektiğinde canlı sistemden tekrar doğrula.
 
