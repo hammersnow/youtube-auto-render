@@ -1,0 +1,18 @@
+{
+  "version": "egi-v16-preview",
+  "channel": "EGI",
+  "status": "preview-only",
+  "publish_enabled": false,
+  "release_enabled": false,
+  "main_workflow_unchanged": true,
+  "max_daily_shorts_after_approval": 2,
+  "language": "en",
+  "categories": [
+    "software",
+    "technology",
+    "mechanics"
+  ],
+  "pilot": "url-html-css-javascript",
+  "visual_standard": "EGI V16 original 2.5D continuous cause-effect motion",
+  "launch_gate": "manual owner approval required after preview QA; no publishing or V7 production changes"
+}
