@@ -1,0 +1,103 @@
+name: EGI V16 Four-Day Episode Buffer QA (NO PUBLISH)
+
+on:
+  push:
+    branches:
+      - egi-v16-episode-buffer-20261120
+    paths:
+      - '.github/workflows/egi-buffer-qa.yml'
+      - 'egi_preview/**'
+      - 'config/egi_episode_catalog.json'
+      - 'scripts/render_egi_daily.py'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: egi-episode-buffer-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  render-all-four:
+    if: github.ref == 'refs/heads/egi-v16-episode-buffer-20261120'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      TZ: Europe/Istanbul
+      EGI_OUTPUT_DIR: ${{ github.workspace }}/outputs/egi_daily
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install deterministic free renderer dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg fonts-dejavu-core
+          python3 -m pip install --disable-pip-version-check 'numpy==2.3.5' 'Pillow==12.0.0'
+          python3 -m compileall -q egi_preview scripts/render_egi_daily.py
+      - name: Regression and catalog QA (no YouTube access)
+        run: |
+          set -euo pipefail
+          python3 egi_preview/qa_v16.py
+          python3 egi_preview/egi_rd_premium_v16.py --kind check
+          for DAY in 2026-11-21 2026-11-22 2026-11-23 2026-11-24; do
+            python3 scripts/render_egi_daily.py --day "$DAY" --check-only
+          done
+          if python3 scripts/render_egi_daily.py --day 2026-11-25 --check-only; then
+            echo "Unexpected filler episode on an empty day" >&2
+            exit 1
+          fi
+
+      - name: Render all four unique full-duration episodes
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p outputs/egi_buffer_qa
+          for DAY in 2026-11-21 2026-11-22 2026-11-23 2026-11-24; do
+            python3 scripts/render_egi_daily.py --day "$DAY"
+            cp outputs/egi_daily/manifest.json "outputs/egi_buffer_qa/manifest_${DAY}.json"
+          done
+      - name: Verify four unique episode identities, SHA and actual full MP4s
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib, json, pathlib, subprocess
+          out=pathlib.Path('outputs/egi_daily')
+          qa=pathlib.Path('outputs/egi_buffer_qa')
+          seen_ids=set()
+          seen_sha=set()
+          for d in ('2026-11-21','2026-11-22','2026-11-23','2026-11-24'):
+              m=json.loads((qa/f'manifest_{d}.json').read_text())
+              assert m['date']==d and m['strategy']=='egi-premium-v16'
+              assert m['publish_enabled'] is True and len(m['shorts'])==1
+              ep=m['shorts'][0]
+              path=out/ep['file']
+              assert path.name.startswith('EGI_') and path.suffix=='.mp4'
+              assert path.stat().st_size>200000
+              assert hashlib.sha256(path.read_bytes()).hexdigest()==ep['sha256']
+              assert ep['episode_id'] not in seen_ids and ep['sha256'] not in seen_sha
+              seen_ids.add(ep['episode_id']);seen_sha.add(ep['sha256'])
+              media=json.loads(subprocess.check_output([
+                  'ffprobe','-v','error','-show_streams','-show_format','-of','json',str(path)]))
+              vs=[x for x in media['streams'] if x['codec_type']=='video']
+              aa=[x for x in media['streams'] if x['codec_type']=='audio']
+              assert len(vs)==len(aa)==1
+              assert vs[0]['codec_name']=='h264' and vs[0]['width']==1080 and vs[0]['height']==1920
+              assert aa[0]['codec_name']=='aac'
+              assert 25<=float(media['format']['duration'])<=36.15
+              print('EGI_BUFFER_QA_PASS',d,ep['episode_id'],ep['sha256'][:16],ep['duration'])
+          assert len(seen_ids)==4 and len(seen_sha)==4
+          print('EGI_4_DAY_BUFFER_QA_COMPLETE: four different full media files, no publisher')
+          PY
+
+      - name: Store all previews and quality evidence; never publish
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: egi-v16-4day-preview-buffer
+          retention-days: 10
+          if-no-files-found: warn
+          path: |
+            outputs/egi_daily/*.mp4
+            outputs/egi_daily/*_frame_*.png
+            outputs/egi_buffer_qa/*.json
