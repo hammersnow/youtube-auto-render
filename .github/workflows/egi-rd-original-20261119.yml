@@ -1,0 +1,42 @@
+name: EGI R&D Original Episode Preview (NO PUBLISH)
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - rd-egi-v16-20261119-original-episodes
+permissions:
+  contents: read
+jobs:
+  preview:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install free CPU renderer dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg fonts-dejavu-core python3-numpy python3-pil
+      - name: Render two full 1080x1920 H264 AAC videos
+        run: |
+          python3 egi_preview/egi_rd_original_20261119.py --kind both --out outputs/egi_rd
+      - name: Check original episodes, actual video, duration and different SHA
+        run: |
+          python3 - <<'PY'
+          import json,os,subprocess
+          a,b=[json.load(open('outputs/egi_rd/'+k+'_qa.json')) for k in ('ssd','heat')]
+          assert a['episode_id']!=b['episode_id'] and a['sha256']!=b['sha256']
+          for k in ('ssd','heat'):
+              p='outputs/egi_rd/'+k+'.mp4'
+              assert os.path.getsize(p)>50000
+              x=json.loads(subprocess.check_output(['ffprobe','-v','error','-show_entries','format=duration','-of','json',p]))
+              assert 8.8<float(x['format']['duration'])<9.2
+              assert all(os.path.getsize('outputs/egi_rd/'+k+'_frame_%03d.png'%i)>10000 for i in (0,60,120,210))
+          print('EGI_ORIGINAL_PREVIEW_QA_PASS',a,b)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: egi-rd-20261119-two-original-fullres-previews
+          path: outputs/egi_rd/
+          retention-days: 14
+          if-no-files-found: error
