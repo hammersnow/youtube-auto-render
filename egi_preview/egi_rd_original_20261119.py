@@ -37,7 +37,15 @@ def base(title,category):
     return im,d
 def progress(d,t):
     d.rounded_rectangle((130,1690,950,1704),radius=7,fill="#183c50")
-    d.rounded_rectangle((130,1690,130+820*clamp(t/DURATION),1704),radius=7,fill="#50d9f0")
+    filled = round(820 * clamp(t / DURATION))
+    # At t=0 (or before the first visible pixel), do not draw a zero-width
+    # rounded rectangle. Radius must also fit very narrow early frames.
+    if filled > 0:
+        d.rounded_rectangle(
+            (130,1690,130+filled,1704),
+            radius=min(7, filled // 2),
+            fill="#50d9f0"
+        )
 def one_callout(d,t,events):
     active=[(a,b,msg) for a,b,msg in events if a<=t<b]
     assert len(active)<=1, "overlapping callouts"
