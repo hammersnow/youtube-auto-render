@@ -56,21 +56,28 @@
 
 **Önemli:** `main`deki gerçek workflow'lar ve yayınlar bir PR oluşturulmasıyla değişmiş olmaz. PR merge + GitHub Actions sonuçlarını doğrulamadan geçiş başarıyla tamamlandı denmez.
 
-## 4. İlk, tekrar etmeyen EGI yayın kataloğu
+## 4. Benzersiz EGI yayın kataloğu — 20 Kasım güncellemesi
 
-**Main’deki onaylı takvime eklenen içerikler** (18 Kasım’da PR #27 merge edildi; ilk gerçek yayın henüz ayrıca doğrulanmadı):
+**`main` üzerindeki onaylı kaynak/katalog:** 18 Kasım'da PR #27 EGI altyapısı; 19 Kasım'da ilk EGI üretim ve YouTube API upload iş akışları başarılı. 20 Kasım devamı için 4 günlük hazır ve QA geçmiş buffer, PR #30 ile main'e merge edildi. Günlük limit **en fazla 2**, kalite önceliğiyle 21–24 Kasım **1 video/gün** seçildi.
 
-| Gün (İstanbul) | Bölüm | Kategori | Kaynak |
+| Gün (Europe/Istanbul) | Bölüm | Renderer | Süre |
 |---|---|---|---|
-| 19 Kasım 2026 | URL'den tarayıcıya (DNS→TCP→TLS→HTTP→HTML/CSS/JavaScript) | Yazılım | EGI V16 |
-| 19 Kasım 2026 | Kablosuz şarj / AC→indüksiyon→DC | Teknoloji | V16 teknoloji / V15 aile temeli |
-| 20 Kasım 2026 | Turbo nasıl çalışır | Mekanik | V8.9 |
-| 20 Kasım 2026 | Intercooler nasıl çalışır | Mekanik | V9.1 kaynaklı pilot |
+| 19 Kasım 2026 | URL → DNS/TCP/TLS/HTTP → HTML/CSS/JS | `v16-software` | 36 sn |
+| 19 Kasım 2026 | AC → indüksiyon → DC kablosuz şarj | `v16-technology` | 36 sn |
+| 20 Kasım 2026 | Turbo ve hava/salma akışları | `turbo` | 26 sn |
+| 20 Kasım 2026 | Intercooler hava/ısı transferi | `intercooler` | 26 sn |
+| 21 Kasım 2026 | SSD wear leveling ve adres eşleme | `premium-ssd` | 32 sn |
+| 22 Kasım 2026 | Heat pipe buharlaşma/yoğuşma/fitil dönüşü | `premium-heat` | 32 sn |
+| 23 Kasım 2026 | Açık diferansiyel (bağlantılı eski onaylı mekanik pilot) | `diff-v12` | 36 sn |
+| 24 Kasım 2026 | Dört zamanlı içten yanmalı motor (önceki onaylı mekanik tasarım) | `engine-v88` | 26 sn |
 
-- Günlük slotlar katalogdaki bölüm sayısına göre **12:00 / 17:00**, tek video günlerinde **15:00**, Europe/Istanbul. Zaman geçmişse yayıncı güvenli ileri saate planlar.
-- 21 Kasım 2026 ve sonrası için henüz **onaylı yeni bölüm yoksa sistem sessiz kalmalı**. Creative R&D ajanı yeni özgün video + katalog PR’ları hazırlar; Reviewer yalnız görsel/teknik QA’yı karşılayanları merge edebilir. Bu otomatik süreç iyi niyetli hedef olup **gelecekte her gün video üretileceğinin garantisi değildir**. Asla aynı dosyayı yeni bölüm gibi tekrar yayımlama.
-- Motor V8.8, diferansiyel V12, diğer test klipleri korunur; ancak **bu ilk katalogda yoktur**. Yeni katalog girdisi, orijinal renderer + görsel inceleme + QA ile eklenmelidir.
-- Önceki V7 `daily-latest` release etiketi ile EGI `egi-daily-latest` **ayrıdır**. Yanlış etiketten içerik çekmek yasak.
+- **Tasarım kanıtı:** [PR #30](https://github.com/hammersnow/youtube-auto-render/pull/30) merge edildi (commit `40eb350d4a7732513ba2feb946808959b63fc61a`); [4 günlük tam render CI](https://github.com/hammersnow/youtube-auto-render/actions/runs/44623058019) başarıyla tamamlandı. Dört bağımsız tam MP4, 1080×1920, H.264/AAC, beklenen süre, farklı episode ID ve SHA256, altı fazlı yeni SSD/heat açıklamaları ve regression QA doğrulandı. Ayrıca önizleme kareleri incelendi.
+- **Görsel not:** SSD ve heat-pipe yeni 32 saniyelik altı aşamalı hareketli anlatım; önceki 9 saniyelik düz testleri **yayında kullanılmaz**. Isı borusu için çip→evaporatör ve kondenser→fin fiziksel bağlantıları düzeltildi.
+- Günlük slotlar 2 video için **12:00 / 17:00**, 1 video için **15:00** İstanbul saati; gecikmiş işler güvenli ileri saate kayabilir.
+- YouTube yüklemeleri normal egi-daily.yml → egi-daily-latest → publish-youtube.yml hattında zamanlanır; GitHub QA yeşil olması **yayının YouTube'da gerçekleştiği anlamına gelmez**. 21–24 Kasım günlük gerçek yayın ayrıca kontrol edilmeli.
+- 25 Kasım ve sonrası için katalogda henüz onaylı bölüm yoksa **NO_NEW_EPISODE**; asla eski klibi tekrar yayımlama.
+- [PR #28](https://github.com/hammersnow/youtube-auto-render/pull/28) ve [PR #29](https://github.com/hammersnow/youtube-auto-render/pull/29) **merge edilmeden kapatıldı**: eski 9 saniyelik R&D ve PENDING_REVIEW placeholder içerikleri PR #30 ile değiştirildi.
+- Bugünkü dört günlük buffer bir defalık; her sonraki günlük yeni üretim otomatik garanti değildir. Creative R&D + Reviewer görüntü/teknik QA ile yeni episodları eklemelidir.
 
 ## 5. Ajanların yeni rolü
 
@@ -78,7 +85,7 @@ Eski V7 puzzle odaklı beş aktif otomasyonun adları/promptları **EGI'ye çevr
 
 - `EGI · Analytics & Strateji` — yaş-eşlemeli 24/48/72 saat ve 7 gün raporu, gerçek kanıt ve format kıyaslaması.
 - `EGI · Trend Scout` — yazılım/teknoloji/mekanik alanında güncel özgün İngilizce fikirler ve mikro animasyon planı.
-- `EGI · Creative R&D` — açık kaynak prosedürel hareket, ses/ikon/kalite geliştirme; **haftada iki planlı çalışmada** farklı özgün bölüm renderer + yeni episode catalog girdisi içeren izolasyonlu PR açabilir. Kalite uygun değilse sayıyı zorlamaz.
+- `EGI · Creative R&D` — açık kaynak prosedürel hareket, ses/ikon/kalite geliştirme; **20 Kasım itibarıyla her gün 10:30 (Europe/Istanbul) çalışmada** farklı özgün bölüm renderer + yeni episode catalog girdisi içeren izolasyonlu PR açabilir. Kalite uygun değilse sayıyı zorlamaz.
 - `EGI · Sistem Denetimi` — günlük EGI release, manifest, YouTube doğrulama, SHA, eksik bölüm/no-filler, legacy cron kapalı mı.
 - `EGI · Reviewer & Integrator` — tek olay/callout, mobil taşma, semantik kaynak, tam MP4 önizlemesi ve QA kontrolü; EGI V16 standardında tamamen yeni bölüm PR’larını **görsel + teknik test kanıtıyla** ve önceden onaylanmış format içinde kaldığında güvenle main’e merge edebilir. Yayın/OAuth/cron/kanal gibi çekirdek sistem değişikliklerinde ayrıca kullanıcı onayı gerekir; kendisi upload başlatmaz.
 
@@ -102,10 +109,11 @@ Eski V7 puzzle odaklı beş aktif otomasyonun adları/promptları **EGI'ye çevr
 - Projeyi temizlemek istiyorsan **önce** bu MD'yi projeye ekle ve dosyanın erişimini kontrol et; sonra eski MD'leri aktif proje eklerinden ayırabilirsin. Eski dosyaların yedeğini repo/yerel arşivde tut. Silme kalıcıysa ancak yedek/rollback ihtiyacının olmadığından emin olduktan sonra.
 - ChatGPT'nin kişisel Memory özelliği ile proje .md dosyaları ayrı mekanizmalardır; bu MD eklemek geçmiş belleği otomatik silmez. Tarihi bilgiye dayanıp V7 otomasyonunu tekrar etkinleştirmemek için yeni belgede açık öncelik belirtilmiştir.
 
-## 8. Sonraki oturum için ilk komut
+## 8. Sonraki oturum için ilk kontrol
 
-> **EGI V16 production geçişi 18 Kasım’da merge edildi, QA yeşil, beş EGI ajanı aktif. İlk iş: 19 Kasım 2026 `egi-daily.yml` workflow run, `egi-daily-latest` manifest ve `publish-youtube.yml` upload sonuçlarını kontrol et. V7 `render-daily.yml` retired olmalı. YouTube kanal kimliği doğrulaması `UCNNyhE1DlhTXIip_p96kczA`. Katalogda yalnız 19–20 Kasım için dört bölüm var; 21 Kasım’dan sonrası için özgün bölümler oluşturulup QA’dan geçirilmeden yayın yapılamaz. Her gün en fazla iki, tekrarsız. Bu dosya eski V6/V7/V8 MD'lerine göre öncelikli.**
+> **EGI V16 main üzerinde, V7 üretimi emekli. 21–24 Kasım 2026 için dört farklı bölüm (SSD, heat-pipe, diferansiyel, dört zamanlı motor) katalogda mevcut; [PR #30](https://github.com/hammersnow/youtube-auto-render/pull/30) merge ve [dört günlük render CI](https://github.com/hammersnow/youtube-auto-render/actions/runs/44623058019) yeşil. Creative R&D ajanı artık her gün 10:30 çalışır; Reviewer saatlik QA uygular. Önce günün egi-daily.yml, egi-daily-latest manifest ve publish-youtube.yml çalışmasını doğrula. Yeni kuyruk 25 Kasım itibarıyla boş kalabilir; tekrar klip yayımlama, yalnız görsel ve teknik QA geçmiş yeni bölüm ekle.**
+
 
 ---
 
-**Kaynak güven düzeyi:** Kullanıcının marka/animasyon tercihleri kesin; PR #26 ve #27 main'e merge edildi, preview ve dört pilotlu cutover QA yeşil, beş EGI ajanı aktif. **Gerçek YouTube upload/publish başarısı henüz test edilmedi; 19 Kasım 2026 ilk production çalışmasında doğrulanacak.**
+**Kaynak güven düzeyi:** V16 kreatif kararları kullanıcı onaylı; PR #26/#27/#30 main'e merge edildi. 19 Kasım YouTube API workflow'u başarılı; video kimlikleri logda mevcut. PR #30 dört medya CI testi yeşil; 21–24 Kasım'ın gelecekteki YouTube yayınları henüz gerçekleşmiş sayılmaz. Yeni bölüm kaynağı için otomatik görsel kalite kontrolü insan incelemesinin yerine geçmez.
