@@ -1,11 +1,21 @@
-name: EGI R&D Original Episode Preview (NO PUBLISH)
+name: EGI R&D V16 Premium Original Preview (NO PUBLISH)
 on:
-  workflow_dispatch:
   push:
     branches:
       - rd-egi-v16-20261119-original-episodes
+    paths:
+      - '.github/workflows/egi-rd-original-20261119.yml'
+      - 'egi_preview/egi_rd_premium_v16.py'
+      - 'egi_preview/qa_rd_original.py'
+      - 'egi_preview/egi_rd_original_20261119.py'
+
 permissions:
   contents: read
+
+concurrency:
+  group: egi-rd-v16-premium-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   preview:
     runs-on: ubuntu-24.04
@@ -14,34 +24,48 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install free CPU renderer dependencies
         run: |
+          set -euo pipefail
           sudo apt-get update -qq
           sudo apt-get install -y -qq ffmpeg fonts-dejavu-core python3-numpy python3-pil
-      - name: Guard first frame, rounding edge cases, and exclusive callouts
+          python3 -m compileall -q egi_preview
+      - name: Guard legacy first-frame regression + premium six-phase boundaries
         run: |
           set -euo pipefail
-          python3 -m compileall -q egi_preview
           python3 egi_preview/qa_rd_original.py
-      - name: Render two full 1080x1920 H264 AAC videos
+          python3 egi_preview/egi_rd_premium_v16.py --kind check
+      - name: Render two 32-second rich V16 1080x1920 H264 AAC explainers
         run: |
-          python3 egi_preview/egi_rd_original_20261119.py --kind both --out outputs/egi_rd
-      - name: Check original episodes, actual video, duration and different SHA
+          set -euo pipefail
+          python3 egi_preview/egi_rd_premium_v16.py --kind both --out outputs/egi_rd_premium
+      - name: Verify full lengths, different SHA, frames and audio
         run: |
+          set -euo pipefail
           python3 - <<'PY'
           import json,os,subprocess
-          a,b=[json.load(open('outputs/egi_rd/'+k+'_qa.json')) for k in ('ssd','heat')]
-          assert a['episode_id']!=b['episode_id'] and a['sha256']!=b['sha256']
+          root='outputs/egi_rd_premium'
+          a,b=[json.load(open(f'{root}/{k}_premium_qa.json')) for k in ('ssd','heat')]
+          assert a['episode_id']!=b['episode_id']
+          assert a['sha256']!=b['sha256']
           for k in ('ssd','heat'):
-              p='outputs/egi_rd/'+k+'.mp4'
-              assert os.path.getsize(p)>50000
-              x=json.loads(subprocess.check_output(['ffprobe','-v','error','-show_entries','format=duration','-of','json',p]))
-              assert 8.8<float(x['format']['duration'])<9.2
-              assert all(os.path.getsize('outputs/egi_rd/'+k+'_frame_%03d.png'%i)>10000 for i in (0,60,120,210))
-          print('EGI_ORIGINAL_PREVIEW_QA_PASS',a,b)
+              p=f'{root}/{k}_premium.mp4'
+              assert os.path.getsize(p)>200000, (p,os.path.getsize(p))
+              data=json.loads(subprocess.check_output(['ffprobe','-v','error','-show_streams','-show_format','-of','json',p]))
+              v=[s for s in data['streams'] if s['codec_type']=='video']
+              audio=[s for s in data['streams'] if s['codec_type']=='audio']
+              assert len(v)==len(audio)==1
+              assert (v[0]['codec_name'],v[0]['width'],v[0]['height'],v[0]['r_frame_rate'])==('h264',1080,1920,'30/1')
+              assert audio[0]['codec_name']=='aac'
+              assert abs(float(data['format']['duration'])-32)<.12
+              for stamp in (0,4,8,12,17,24,30):
+                  f=f'{root}/{k}_premium_frame_{stamp:02d}.png'
+                  assert os.path.getsize(f)>10000, f
+          print('EGI_32SEC_TWO_ORIGINAL_QA_PASS',a['sha256'][:16],b['sha256'][:16])
           PY
-      - uses: actions/upload-artifact@v4
+      - name: Keep offline MP4 and key frames for human QA - no release or YouTube
         if: always()
+        uses: actions/upload-artifact@v4
         with:
-          name: egi-rd-20261119-two-original-fullres-previews
-          path: outputs/egi_rd/
+          name: egi-v16-ssd-heat-32s-premium
+          path: outputs/egi_rd_premium/
           retention-days: 14
-          if-no-files-found: error
+          if-no-files-found: warn
