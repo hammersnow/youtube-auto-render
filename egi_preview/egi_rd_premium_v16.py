@@ -199,12 +199,16 @@ def heat_frame(t,back):
     txt(d,240,490,"HOT CHIP",31,WHITE,True)
     temp="HIGH HEAT INPUT" if t>=2 else "STARTUP"
     txt(d,240,542,temp,19,AMBER,True)
-    for i in range(6):
-        x=225+i*122
-        box(d,(x-42,1070,x+42,1228),"#244d64","#619ab0",10)
+    # Copper contact ties the hot chip to the evaporator. A condenser
+    # attachment plate conducts released heat directly into the fin stack.
+    box(d,(202,586,294,677),"#a3653e","#ebbb83",12,4)
+    box(d,(747,991,932,1089),"#936047","#f2bb7c",12,4)
+    for i in range(5):
+        x=765+i*38
+        box(d,(x-14,1070,x+14,1228),"#244d64","#619ab0",8)
         for k in range(3):
-            line(d,[(x-32,1102+k*36),(x+32,1102+k*36)],"#588ba5",3)
-    txt(d,550,1258,"EXTERNAL COOLING FINS  •  HEAT SINK",24,"#8cbdce",True)
+            line(d,[(x-9,1102+k*36),(x+9,1102+k*36)],"#79b1c8",3)
+    txt(d,800,1258,"COOLING FINS  •  HEAT SINK",24,"#8cbdce",True)
     box(d,(108,649,982,1038),"#89513a","#eab581",70,9)
     box(d,(135,675,955,1008),"#285263","#eab581",65,8)
     # continuous wick bands, colored blue: liquid returns along the inside wall
@@ -217,8 +221,8 @@ def heat_frame(t,back):
     # Physically distinct channels/directions, not the same stream.
     arrow(d,300,876,800,876,AMBER,6)
     arrow(d,810,954,260,954,CYAN,5)
-    arrow(d,215,1040,215,996,AMBER,8)
-    arrow(d,850,1030,850,1065,CYAN,8)
+    arrow(d,245,608,245,650,AMBER,8)
+    arrow(d,850,1030,850,1080,CYAN,8)
     # heat enters from hot chip; the exchanger rejects heat into fins
     for k in range(5):
         u=((t*.45+k/5)%1)
