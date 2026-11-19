@@ -14,9 +14,13 @@ FILES = {
     "v16-technology": "EGI_V16_Technology_One_Event_One_Callout.mp4",
     "turbo": "EGI_Turbo_Premium_2_5D.mp4",
     "intercooler": "EGI_Intercooler_TextFit_2_5D.mp4",
+    "premium-ssd": "EGI_SSD_Wear_Leveling_V16.mp4",
+    "premium-heat": "EGI_Heat_Pipe_Phase_Change_V16.mp4",
+    "diff-v12": "EGI_V12_Mechanics_Open_Differential_Microanimations.mp4",
+    "engine-v88": "EGI_Engine_Four_Stroke_V88.mp4",
 }
-DURATIONS = {"v16-software":36, "v16-technology":36, "turbo":26, "intercooler":26}
-FPS = {"v16-software":"30/1","v16-technology":"30/1","turbo":"24/1","intercooler":"24/1"}
+DURATIONS = {"v16-software":36, "v16-technology":36, "turbo":26, "intercooler":26, "premium-ssd":32, "premium-heat":32, "diff-v12":36, "engine-v88":26}
+FPS = {"v16-software":"30/1","v16-technology":"30/1","turbo":"24/1","intercooler":"24/1", "premium-ssd":"30/1", "premium-heat":"30/1", "diff-v12":"24/1", "engine-v88":"24/1"}
 
 def check_catalog(cat):
     assert cat.get("strategy") == STRATEGY
@@ -42,6 +46,16 @@ def command(e, target):
         mode = "software" if renderer.endswith("software") else "technology"
         return [sys.executable, str(ROOT/"egi_preview/egi_v16_rich_resources.py"),
                 "--mode", mode]
+    if renderer in ("premium-ssd", "premium-heat"):
+        return [sys.executable, str(ROOT/"egi_preview/egi_rd_premium_v16.py"),
+                "--kind", "ssd" if renderer == "premium-ssd" else "heat",
+                "--out", str(OUT)]
+    if renderer == "diff-v12":
+        return [sys.executable,str(ROOT/"egi_preview/egi_v12_tech_mechanics_connected.py"),
+                "--mode","mechanical"]
+    if renderer == "engine-v88":
+        return [sys.executable,str(ROOT/"egi_preview/egi_engine_v88.py"),
+                "--video",str(target),"--audio",str(OUT/"egi_engine_v88.wav")]
     source = "egi_turbo.py" if renderer=="turbo" else "egi_intercooler.py"
     audio = OUT / (renderer+"_original_audio.wav")
     return [sys.executable,str(ROOT/"egi_preview"/source),
@@ -83,6 +97,10 @@ def main():
     for e in episodes:
         target = OUT / FILES[e["renderer"]]
         subprocess.run(command(e,target),cwd=ROOT,env=env,check=True)
+        if e["renderer"] in ("premium-ssd", "premium-heat"):
+            original=OUT/("ssd_premium.mp4" if e["renderer"]=="premium-ssd" else "heat_premium.mp4")
+            assert original.is_file(),original
+            original.replace(target)
         assert target.is_file(),target
         m=probe(target,e["renderer"])
         checksum=hashlib.sha256(target.read_bytes()).hexdigest()
