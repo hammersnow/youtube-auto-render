@@ -6,7 +6,7 @@
   "timezone": "Europe/Istanbul",
   "publish_enabled": true,
   "max_daily_shorts": 2,
-  "rule": "Each approved episode_id may occur only once across the catalog. No retries as new uploads, no repeat filler; quality over quota.",
+  "rule": "Each approved episode_id may occur only once across the catalog. No retries as new uploads, no repeat filler; quality over quota. Every scheduled episode requires renderer source, full MP4/visual review and passing branch QA. No filler days.",
   "schedule": {
     "2026-11-19": [
       {
@@ -69,6 +69,76 @@
           "engine",
           "technology",
           "mechanics",
+          "shorts"
+        ]
+      }
+    ],
+    "2026-11-21": [
+      {
+        "id": "egi-ssd-wear-leveling-v16",
+        "category": "software",
+        "renderer": "premium-ssd",
+        "title": "Why Your SSD Moves Data Behind the Scenes 💾 #Shorts",
+        "description": "Inside NAND flash: logical file addresses, write requests, erase cycles, mapping updates and wear distribution. Original 32-second stylized technical visualization by EGI. A simplified example; actual controllers also perform garbage collection and use spare blocks. #SSD #Storage #Programming #EGI",
+        "tags": [
+          "SSD",
+          "NAND flash",
+          "wear leveling",
+          "FTL",
+          "storage",
+          "engineering",
+          "shorts"
+        ]
+      }
+    ],
+    "2026-11-22": [
+      {
+        "id": "egi-heat-pipe-phase-change-v16",
+        "category": "science",
+        "renderer": "premium-heat",
+        "title": "How a Heat Pipe Moves Heat Without a Pump 🔥 #Shorts",
+        "description": "Watch heat enter an evaporator, liquid vaporize, vapor travel to the condenser, heat leave through the fins and liquid return through the wick by capillary action. Original 32-second stylized scientific visualization by EGI. #HeatPipe #Physics #ThermalEngineering #EGI",
+        "tags": [
+          "heat pipe",
+          "phase change",
+          "cooling",
+          "thermal engineering",
+          "science",
+          "shorts"
+        ]
+      }
+    ],
+    "2026-11-23": [
+      {
+        "id": "egi-open-differential-connected-v12",
+        "category": "mechanics",
+        "renderer": "diff-v12",
+        "title": "Why Car Wheels Spin at Different Speeds in Turns ⚙️ #Shorts",
+        "description": "Follow input torque through ring gear, carrier and spider gears to the two wheels of an open differential. Watch straight driving and turning with changing wheel speeds, an original connected mechanical animation by EGI. Simplified mechanism demonstration. #Differential #Mechanics #Engineering #EGI",
+        "tags": [
+          "open differential",
+          "spider gears",
+          "drivetrain",
+          "automotive",
+          "engineering",
+          "shorts"
+        ]
+      }
+    ],
+    "2026-11-24": [
+      {
+        "id": "egi-four-stroke-cycle-v88",
+        "category": "mechanics",
+        "renderer": "engine-v88",
+        "title": "How Four Engine Strokes Turn Fuel Into Rotation 🔧 #Shorts",
+        "description": "Inside a stylized four-stroke spark-ignition engine: intake, compression, power and exhaust. See pistons, valves, connecting rod and crankshaft turn combustion into rotation. Original procedural engineering animation by EGI; simplified geometry, not CFD. #Engine #Mechanics #Engineering #EGI",
+        "tags": [
+          "four stroke engine",
+          "piston",
+          "crankshaft",
+          "valves",
+          "engineering",
+          "automotive",
           "shorts"
         ]
       }
