@@ -1,0 +1,75 @@
+name: V8 Blender CPU Preview (NO PUBLISH)
+on:
+  push:
+    branches: [v8-preview-20261117-engine-growth]
+    paths:
+      - 'scripts/v8_blender_engine_preview.py'
+      - '.github/workflows/v8-blender-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  engine-preview:
+    if: github.ref == 'refs/heads/v8-preview-20261117-engine-growth'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      TZ: Europe/Istanbul
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install CPU Blender 4.x and FFmpeg
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq blender ffmpeg fonts-dejavu-core
+          blender --version | head -n 2
+          ffmpeg -version | head -n 1
+      - name: Benchmark Cycles CPU render (6s, 360x640)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p outputs/v8_blender_preview/frames
+          /usr/bin/time -v blender -b --factory-startup \
+            --python-exit-code 1 \
+            --python scripts/v8_blender_engine_preview.py \
+            -- --output outputs/v8_blender_preview/frames/frame_ \
+               --width 360 --height 640 --fps 12 --seconds 6 --samples 8 \
+            2>&1 | tee outputs/v8_blender_preview/render.log
+          test "$(find outputs/v8_blender_preview/frames -maxdepth 1 -type f -name 'frame_*.png' | wc -l)" -eq 72
+      - name: Compose annotated human-legible preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf 'Ekrem Gökberk İşcan' > outputs/v8_blender_preview/watermark.txt
+          FONT=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf
+          ffmpeg -hide_banner -loglevel error -y \
+            -framerate 12 -i outputs/v8_blender_preview/frames/frame_%04d.png \
+            -vf "drawbox=x=0:y=0:w=iw:h=152:color=0x07101C@0.83:t=fill,\
+            drawtext=fontfile=$FONT:text='HOW DOES AN ENGINE WORK?':fontcolor=white:fontsize=20:x=(w-text_w)/2:y=45,\
+            drawtext=fontfile=$FONT:text='1 / INTAKE':fontcolor=0x47C8FF:fontsize=29:x=(w-text_w)/2:y=99:enable='between(t,0,1.499)',\
+            drawtext=fontfile=$FONT:text='2 / COMPRESSION':fontcolor=0xC6E9FF:fontsize=25:x=(w-text_w)/2:y=99:enable='between(t,1.5,2.999)',\
+            drawtext=fontfile=$FONT:text='3 / POWER':fontcolor=0xFFC34A:fontsize=29:x=(w-text_w)/2:y=99:enable='between(t,3,4.499)',\
+            drawtext=fontfile=$FONT:text='4 / EXHAUST':fontcolor=0xFF8060:fontsize=29:x=(w-text_w)/2:y=99:enable='between(t,4.5,6)',\
+            drawbox=x=0:y=490:w=iw:h=150:color=0x07101C@0.88:t=fill,\
+            drawtext=fontfile=$FONT:text='Fresh air enters the cylinder':fontcolor=white:fontsize=18:x=(w-text_w)/2:y=518:enable='between(t,0,1.499)',\
+            drawtext=fontfile=$FONT:text='Piston squeezes the mixture':fontcolor=white:fontsize=18:x=(w-text_w)/2:y=518:enable='between(t,1.5,2.999)',\
+            drawtext=fontfile=$FONT:text='A spark pushes the piston down':fontcolor=white:fontsize=17:x=(w-text_w)/2:y=518:enable='between(t,3,4.499)',\
+            drawtext=fontfile=$FONT:text='Burned gases leave the cylinder':fontcolor=white:fontsize=16:x=(w-text_w)/2:y=518:enable='between(t,4.5,6)',\
+            drawtext=fontfile=$FONT:textfile=outputs/v8_blender_preview/watermark.txt:fontcolor=white@0.68:fontsize=16:x=(w-text_w)/2:y=600" \
+            -c:v libx264 -preset medium -crf 19 -pix_fmt yuv420p \
+            -an -movflags +faststart outputs/v8_blender_preview/V8_Blender_Engine_CPU_Test.mp4
+          ffprobe -v error -show_entries format=duration -show_entries stream=codec_name,width,height,r_frame_rate -of default=nw=1 outputs/v8_blender_preview/V8_Blender_Engine_CPU_Test.mp4
+      - name: Store preview only (NEVER release or publish)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v8-blender-engine-preview
+          if-no-files-found: warn
+          retention-days: 7
+          path: |
+            outputs/v8_blender_preview/V8_Blender_Engine_CPU_Test.mp4
+            outputs/v8_blender_preview/render.log
+            outputs/v8_blender_preview/engine_test.blend
+            outputs/v8_blender_preview/frames/frame_0001.png

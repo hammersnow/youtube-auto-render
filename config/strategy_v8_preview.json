@@ -1,0 +1,33 @@
+{
+  "version": 8,
+  "status": "preview-only",
+  "publish_enabled": false,
+  "daily_short_count": 2,
+  "timezone": "Europe/Istanbul",
+  "series": [
+    "inside_the_machine",
+    "physics_in_motion"
+  ],
+  "editorial_promise": "See how it really works",
+  "target_language": "en",
+  "selection_policy": "one-original-episode-per-series",
+  "max_daily_short_count": 2,
+  "initial_testing_days": 14,
+  "cohort_windows_hours": [
+    24,
+    48,
+    72,
+    168
+  ],
+  "quality_gate": [
+    "engineering_accuracy",
+    "human_mobile_review",
+    "safe_area",
+    "unique_episode",
+    "rights_clearance",
+    "audio_review",
+    "manual_launch_approval"
+  ],
+  "launch_gate": "No V8 publishing, release or main workflow change until explicit user start approval.",
+  "notes": "Draft planning configuration ONLY. The V7 production publisher must not load this file."
+}
