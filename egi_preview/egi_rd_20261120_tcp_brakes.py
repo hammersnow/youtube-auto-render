@@ -104,7 +104,7 @@ def hydraulic(t):
     for side in (-1,1):
         x=cx+side*(190-43*p)
         d.rounded_rectangle((x-25,cy-76,x+25,cy+76),radius=12,fill=GOLD)
-    text(d,(600,1440),"CALIPER + DISC",28,MUTED)
+    text(d,(600,1370),"CALIPER + DISC",28,MUTED)
     events=[(0,3,"The pedal applies input force."),(3,7,"Piston pressurizes brake fluid."),
             (7,12,"Pressure acts throughout the line."),(12,17,"Caliper pistons push both pads."),
             (17,22,"Friction converts motion to heat."),(22,26,"Release: pressure falls; pads relax.")]
