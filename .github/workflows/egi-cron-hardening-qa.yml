@@ -38,7 +38,7 @@ jobs:
           steps=wf['jobs']['render-and-release']['steps']
           assert any('EGI_RELEASE_READY' not in x.get('run','') and 'egi_release_gate.py release' in x.get('run','') for x in steps), 'No release idempotency check'
           assert any('egi_release_gate.py publisher' in x.get('run','') for x in steps), 'No retry idempotency check'
-          assert any('if: steps.selection.outputs.eligible' in str(x) for x in steps), 'No render eligibility guard'
+          assert any(x.get('if','').startswith("steps.selection.outputs.eligible") for x in steps), 'No render eligibility guard'
 
           catalog=json.loads(Path('config/egi_episode_catalog.json').read_text())
           for day in ('2026-11-21','2026-11-22','2026-11-23','2026-11-24'):
