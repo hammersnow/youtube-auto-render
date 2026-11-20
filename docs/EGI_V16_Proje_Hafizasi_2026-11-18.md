@@ -117,3 +117,12 @@ Eski V7 puzzle odaklı beş aktif otomasyonun adları/promptları **EGI'ye çevr
 ---
 
 **Kaynak güven düzeyi:** V16 kreatif kararları kullanıcı onaylı; PR #26/#27/#30 main'e merge edildi. 19 Kasım YouTube API workflow'u başarılı; video kimlikleri logda mevcut. PR #30 dört medya CI testi yeşil; 21–24 Kasım'ın gelecekteki YouTube yayınları henüz gerçekleşmiş sayılmaz. Yeni bölüm kaynağı için otomatik görsel kalite kontrolü insan incelemesinin yerine geçmez.
+
+## 9. 20 Kasım 2026 — GitHub cron güvenilirliği düzeltmesi (PR #32)
+
+- **Kanıt:** 19 ve 20 Kasım EGI günlük üretimlerinin Github Actions `created_at` saatleri yaklaşık 07:17 UTC (10:17 Türkiye) iken workflow `17 0 * * *` (00:17 UTC / 03:17 Türkiye) olarak ayarlıydı. Yayın iş akışları iki günde de başarılı, ancak üretimin gecikmesi 12:00 yayın aralığı için risk yaratıyor. GitHub scheduled run'ların yoğunlukta gecikebileceğini veya atlanabileceğini dokümante ediyor; platform kök nedeni bağımsız olarak kanıtlanmış değildir.
+- **Çözüm, [PR #32](https://github.com/hammersnow/youtube-auto-render/pull/32):** Ana `cron: 17 21 * * *` (ertesi yerel gün **00:17 İstanbul**), güvenli ikinci `cron: 17 0 * * *` (**03:17 İstanbul**) olarak iki farklı tetikleyici tanımlandı. Her ikisi aynı `concurrency` grubuna girer, aynı günün videosunu paralel üretmez.
+- **Tekilleştirme:** `scripts/egi_release_gate.py` günlük manifestin katalog bölüm kimliklerini, SHA biçimini, release dosyalarının tam listesini ve boyutunu doğrular. Bugünün tam release'i mevcutsa yeniden render/asset silme yapılmaz. Aynı gün başarılı veya devam eden `publish-youtube.yml` çalışması varsa yayın tekrar tetiklenmez. Yayın işi yok veya başarısızsa, mevcut YouTube duplicate-marker korumalı yayıncı yeniden tetiklenebilir.
+- **Fail-closed:** Katalogda yeni bölüm olmaması (`--check-only` kod 3) normaldir; katalog doğrulama/çalıştırma hatası artık sessizce “bölüm yok” kabul edilmez.
+- **QA:** [İzole GitHub regresyon testi](https://github.com/hammersnow/youtube-auto-render/actions/runs/44721611780) yeşil. Önceden hazırlanmış 21–24 Kasım bölüm kuyruğu, YouTube OAuth/yükleme API kodu ve V7 retired workflow değiştirilmedi.
+- **Gözlem şartı:** Bu değişiklik henüz ertesi günün gerçek zamanlanmış GitHub çalışmasında gözlenmedi. Cron çalıştırmaları GitHub tarafından kesin saat garantili değildir; günlük denetim ilk otomatik çalışmanın `created_at` zamanı ve ilk release/upload başarı kaydını kontrol etmelidir.
