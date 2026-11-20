@@ -3,7 +3,8 @@ name: EGI Daily Original Shorts (2 MAX)
 on:
   workflow_dispatch:
   schedule:
-    - cron: '17 0 * * *' # 03:17 Europe/Istanbul (UTC+3)
+    - cron: '17 21 * * *' # 00:17 Europe/Istanbul next local day; primary
+    - cron: '17 0 * * *'  # 03:17 Europe/Istanbul; idempotent fallback
 
 permissions:
   contents: write
@@ -25,17 +26,58 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check unique approved episode catalog (no repeat filler)
+      - name: Check exact approved day, verify existing release, fail closed
         id: selection
         shell: bash
         run: |
           set -euo pipefail
-          if python3 scripts/render_egi_daily.py --check-only; then
-            echo "eligible=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "eligible=false" >> "$GITHUB_OUTPUT"
-            echo "No new EGI episode scheduled today: no render, no release, no YouTube upload."
+          DAY="$(TZ=Europe/Istanbul date +%F)"
+          echo "day=$DAY" >> "$GITHUB_OUTPUT"
+          echo "EGI_SCHEDULE_CHECK: local_day=$DAY, planned_event=${{ github.event.schedule }}"
+          python3 scripts/egi_release_gate.py self-test
+
+          # Code 3 is explicitly "no catalog episode"; every other failure is
+          # a real error, not a quiet green "no episode" status.
+          set +e
+          python3 scripts/render_egi_daily.py --day "$DAY" --check-only
+          rc=$?
+          set -e
+          case "$rc" in
+            0) ;;
+            3)
+              echo "eligible=false" >> "$GITHUB_OUTPUT"
+              echo "release_ready=false" >> "$GITHUB_OUTPUT"
+              echo "EGI_NO_APPROVED_EPISODE: $DAY (normal, no filler)"
+              exit 0
+              ;;
+            *)
+              echo "EGI_CATALOG_ERROR: exit=$rc" >&2
+              exit "$rc"
+              ;;
+          esac
+
+          mkdir -p /tmp/egi-existing
+          TAG="egi-daily-latest"
+          # A complete current-day release must never be overwritten by the
+          # backup cron. An incomplete/stale release is safely rebuilt.
+          if gh release view "$TAG" >/dev/null 2>&1 &&
+             gh release download "$TAG" --pattern manifest.json \
+               --dir /tmp/egi-existing --clobber >/dev/null 2>&1 &&
+             gh release view "$TAG" --json assets > /tmp/egi-existing/assets.json; then
+            if python3 scripts/egi_release_gate.py release \
+                 --day "$DAY" \
+                 --catalog config/egi_episode_catalog.json \
+                 --manifest /tmp/egi-existing/manifest.json \
+                 --assets /tmp/egi-existing/assets.json; then
+              echo "eligible=false" >> "$GITHUB_OUTPUT"
+              echo "release_ready=true" >> "$GITHUB_OUTPUT"
+              echo "EGI_RENDER_SKIPPED: today's complete release already exists"
+              exit 0
+            fi
           fi
+          echo "eligible=true" >> "$GITHUB_OUTPUT"
+          echo "release_ready=false" >> "$GITHUB_OUTPUT"
+          echo "EGI_RENDER_REQUIRED: $DAY"
 
       - name: Install free Python renderer and FFmpeg
         if: steps.selection.outputs.eligible == 'true'
@@ -111,6 +153,22 @@ jobs:
           done
           echo "Release did not verify; REFUSING YOUTUBE DISPATCH" >&2
           exit 1
+
+      - name: Recover YouTube dispatcher only if today's verified release lacks a publisher
+        if: steps.selection.outputs.release_ready == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          DAY="${{ steps.selection.outputs.day }}"
+          gh run list --workflow publish-youtube.yml --branch main \
+            --limit 40 --json createdAt,status,conclusion > /tmp/egi-publisher-runs.json
+          if python3 scripts/egi_release_gate.py publisher \
+               --day "$DAY" --runs /tmp/egi-publisher-runs.json; then
+            gh workflow run publish-youtube.yml --ref main
+            echo "EGI_PUBLISH_RECOVERY_DISPATCHED: $DAY"
+          else
+            echo "EGI_PUBLISH_ALREADY_OK_OR_RUNNING: $DAY"
+          fi
 
       - name: Keep short-term render evidence
         if: always() && steps.selection.outputs.eligible == 'true'
