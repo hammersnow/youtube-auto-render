@@ -1,0 +1,66 @@
+name: EGI Cron Reliability Gate QA (NO PUBLISH)
+
+on:
+  push:
+    branches: [egi-v16-cron-reliability-20261120]
+    paths:
+      - 'scripts/egi_release_gate.py'
+      - '.github/workflows/egi-daily.yml'
+      - '.github/workflows/egi-cron-hardening-qa.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate gate and schedule syntax without secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --disable-pip-version-check 'PyYAML==6.0.3'
+          python3 -m compileall -q scripts/egi_release_gate.py scripts/render_egi_daily.py
+          python3 scripts/egi_release_gate.py self-test
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          import yaml
+          from scripts.egi_release_gate import release_ready, publisher_retry_needed
+
+          f=Path('.github/workflows/egi-daily.yml')
+          wf=yaml.load(f.read_text(),Loader=yaml.BaseLoader)
+          crons=[x['cron'] for x in wf['on']['schedule']]
+          assert crons==['17 21 * * *','17 0 * * *'], crons
+          assert wf['jobs']['render-and-release']['concurrency'] if 'concurrency' in wf['jobs']['render-and-release'] else wf['concurrency']
+          steps=wf['jobs']['render-and-release']['steps']
+          assert any('EGI_RELEASE_READY' not in x.get('run','') and 'egi_release_gate.py release' in x.get('run','') for x in steps), 'No release idempotency check'
+          assert any('egi_release_gate.py publisher' in x.get('run','') for x in steps), 'No retry idempotency check'
+          assert any('if: steps.selection.outputs.eligible' in str(x) for x in steps), 'No render eligibility guard'
+
+          catalog=json.loads(Path('config/egi_episode_catalog.json').read_text())
+          for day in ('2026-11-21','2026-11-22','2026-11-23','2026-11-24'):
+              ep=catalog['schedule'][day]
+              shorts=[]
+              assets=[{'name':'manifest.json','size':999}]
+              for i,row in enumerate(ep):
+                  filename=f'EGI_Simulated_Render_{i}.mp4'
+                  shorts.append({'episode_id':row['id'],'title':row['title'],'file':filename,'sha256':format(i+1,'064x')})
+                  assets.append({'name':filename,'size':800000})
+              m={'date':day,'brand':'EGI','strategy':'egi-premium-v16',
+                 'publish_enabled':True,'timezone':'Europe/Istanbul','shorts':shorts}
+              assert release_ready(day,catalog,m,{'assets':assets}), day
+              bad=dict(m,date='2026-11-20')
+              assert not release_ready(day,catalog,bad,{'assets':assets})
+          assert not catalog['schedule'].get('2026-11-25')
+          print('EGI_CRON_GATE_QA_PASS: schedule, release completeness, 4-day catalog, no repeat publish')
+          PY
+
+      - name: Assert no YouTube secrets or publication jobs in QA workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          ! grep -Ei 'YOUTUBE_CLIENT_ID|YOUTUBE_REFRESH_TOKEN|gh workflow run' .github/workflows/egi-cron-hardening-qa.yml
+          echo "EGI_QA_ISOLATED_NO_PUBLISH_PASS"
