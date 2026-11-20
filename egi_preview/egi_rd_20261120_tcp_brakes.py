@@ -25,7 +25,13 @@ def circle(d,x,y,r,color): d.ellipse((int(x-r),int(y-r),int(x+r),int(y+r)),fill=
 def base(title,subtitle):
     im=Image.new("RGB",(W,H),BG); d=ImageDraw.Draw(im)
     text(d,(78,112),"EGI  /  CURIOSITY IN MOTION",29,CYAN,True)
-    text(d,(78,216),title,53,WHITE,True)
+    # Fit variable-length episode headlines inside the 920px safe area.
+    # Font size changes only when needed; never allow a silent crop.
+    heading_size=53
+    while d.textbbox((0,0),title,font=font(heading_size,True))[2]>920 and heading_size>30:
+        heading_size-=1
+    assert d.textbbox((0,0),title,font=font(heading_size,True))[2]<=920, ('TEXT_OVERFLOW',title)
+    text(d,(78,216),title,heading_size,WHITE,True)
     text(d,(78,298),subtitle,29,MUTED)
     line(d,[(78,374),(1000,374)],(38,65,85),3)
     text(d,(78,1740),"EKREM GOKBERK ISCAN  /  EGI",25,MUTED)
