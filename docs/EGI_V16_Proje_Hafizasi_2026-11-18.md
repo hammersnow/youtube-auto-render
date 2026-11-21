@@ -126,3 +126,10 @@ Eski V7 puzzle odaklı beş aktif otomasyonun adları/promptları **EGI'ye çevr
 - **Fail-closed:** Katalogda yeni bölüm olmaması (`--check-only` kod 3) normaldir; katalog doğrulama/çalıştırma hatası artık sessizce “bölüm yok” kabul edilmez.
 - **QA:** [İzole GitHub regresyon testi](https://github.com/hammersnow/youtube-auto-render/actions/runs/44721611780) yeşil. Önceden hazırlanmış 21–24 Kasım bölüm kuyruğu, YouTube OAuth/yükleme API kodu ve V7 retired workflow değiştirilmedi.
 - **Gözlem şartı:** Bu değişiklik henüz ertesi günün gerçek zamanlanmış GitHub çalışmasında gözlenmedi. Cron çalıştırmaları GitHub tarafından kesin saat garantili değildir; günlük denetim ilk otomatik çalışmanın `created_at` zamanı ve ilk release/upload başarı kaydını kontrol etmelidir.
+
+## 10. 21 Kasım 2026 — SSD bölümüne olumsuz kullanıcı geri bildirimi
+
+- **Kesin kullanıcı kararı:** 21 Kasım 2026'da planlanan `egi-ssd-wear-leveling-v16` bölümünün mevcut videosu **beğenilmedi**. Bu sürüm yaratıcı kalite açısından **reddedilmiş örnek** kabul edilecek; ileride görsel tasarım/kurgu için olumlu referans olarak kullanılmayacak, yeniden yayınlanmayacak ve basit renk/başlık değiştirerek yeni bölüm yapılmayacak.
+- **Henüz bilinmeyen:** Kullanıcı beğenmeme sebebini (konu, ses, açıklama, hareket zenginliği, çizim kalitesi veya tempo) ayrıntılandırmadı; tek bir kusur varsayılıp kesin neden olarak kaydedilmeyecek.
+- **R&D/Reviewer aksiyonu:** Bu negatif referansı inceleyerek yeni bölümlerde yalnız codec/çözünürlük/ffprobe başarılarına dayanarak yaratıcı onay verme. Anlatılan fiziksel veya teknik mekanizmanın gerçekten hareket etmesini, zengin açıklayıcı görsel öğeleri, güçlü 0–3 saniye açılışını, gerçek neden-sonuç ilerleyişini ve mobil ekran estetiğini değerlendir. Aynı `egi_rd_premium_v16.py` ailesindeki heat-pipe bölümü (22 Kasım) dahil benzer şablonların kullanıcı tarafından onaylandığını varsayma.
+- **Operasyon sınırı:** Bu geri bildirim mevcut YouTube videosunun otomatik silinmesi/gizlenmesi için yetki değildir. Kullanıcı ayrıca istemedikçe YouTube mevcut durumuna, programlanmış yayınlara veya katalog slotlarına müdahale edilmez.
