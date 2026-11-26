@@ -34,80 +34,184 @@ def transient(d,t,events):
   a,b,s=active[0]; opacity=ease((t-a)/.35)*(1-ease((t-(b-.4))/.4))
   if opacity>.02:
    text(d,(540,1630),s,33,(int(150+85*opacity),int(170+65*opacity),255),True)
+RED=(255,91,109)
+MUTED=(115,161,185)
+def panel(d,box,color=CYAN):
+ x,y,x2,y2=box
+ d.rounded_rectangle((x+10,y+12,x2+10,y2+12),radius=25,fill=(5,12,22))
+ d.rounded_rectangle(box,radius=25,fill=(19,40,57),outline=color,width=3)
+ wire(d,[(x+22,y+12),(x2-22,y+12)],(71,107,128),3)
+def chip(d,x,y,w,h,label,color,detail=None):
+ panel(d,(x,y,x+w,y+h),color)
+ text(d,(x+w/2,y+h*.35),label,31,color,True)
+ if detail:text(d,(x+w/2,y+h*.72),detail,24)
+def packet(d,x,y,label,color,scale=1):
+ w=68*scale;h=35*scale
+ d.rounded_rectangle((x-w,y-h,x+w,y+h),radius=9,fill=(20,44,63),outline=color,width=4)
+ text(d,(x,y),label,int(24*scale),color,True)
+def focus(d,t,rect,color):
+ # restrained stage-specific outline, leaving every persistent object visible
+ x,y,x2,y2=rect
+ a=.5+.5*math.sin(t*3)
+ c=tuple(int(45+(v-45)*(.45+.55*a)) for v in color)
+ for px,py,dx,dy in [(x,y,1,1),(x2,y,-1,1),(x,y2,1,-1),(x2,y2,-1,-1)]:
+  wire(d,[(px+dx*35,py),(px,py),(px,py+dy*35)],c,5)
 def branch(t):
  im,d=base("WHY CPUs GUESS AHEAD")
- # Connected fetch -> branch -> speculative lanes -> flush -> correct commit.
- wire(d,[(155,660),(510,660),(510,810)],(64,112,143),15)
- wire(d,[(510,810),(305,1020),(305,1280)],CYAN,12)
- wire(d,[(510,810),(785,1020),(785,1280)],GOLD,12)
- for x,y,label in [(155,660,"FETCH"),(510,810,"BRANCH"),(305,1300,"PATH A"),(785,1300,"PATH B")]:
-  circle(d,x,y,64,(27,65,84));circle(d,x,y,64,CYAN if x!=785 else GOLD,4);text(d,(x,y),label,22)
- progress=ease(t/3)
- circle(d,155+355*progress,660,18,GREEN)
- prediction=t>=4; resolved=t>=15; commit=t>=21
- if prediction:
-  text(d,(540,465),"PREDICT A",37,CYAN,True)
-  for i in range(5):
-   p=clamp((t-4-i*.55)/5)
-   if p:
-    circle(d,510-205*ease(p),810+470*ease(p),12,CYAN)
- if resolved:
-  text(d,(540,530),"ACTUAL: B",36,GOLD,True)
-  if t<21:
-   for j in range(4):
-    p=ease((t-15-j*.18)/2)
-    if p:wire(d,[(305-40*p,1020+65*j),(305+40*p,1020+65*j)],(255,91,109),7)
-  for j in range(5):
-   p=ease((t-17-j*.48)/5)
-   if p:circle(d,510+275*p,810+470*p,12,GOLD)
- if commit:
-  circle(d,785,1350,40,GREEN,5);text(d,(785,1415),"COMMIT B",27,GREEN,True)
- transient(d,t,[(0,3,"The CPU fetches a branch"),(4,7,"Prediction starts speculative work"),(15,18,"Wrong path: discard its results"),(21,25,"Correct path can retire")])
+ red=RED
+ # Persistent instruction stream, predictor and execution/retirement queue.
+ text(d,(540,363),"INSTRUCTION STREAM",26,MUTED,True)
+ for i,s in enumerate(("LOAD","CMP","JNZ B","ADD","XOR")):
+  x=86+i*184
+  col=GOLD if i==2 else CYAN
+  packet(d,x+85,430,s,col,.98)
+ chip(d,90,520,420,138,"FETCH / DECODE",CYAN,"PC 0x104")
+ chip(d,570,520,420,138,"PREDICTOR",GOLD,"Predict A" if t<15 else "Actual B")
+ wire(d,[(510,589),(570,589)],GOLD,7)
+ if t<5:packet(d,540,589,"JNZ",GOLD,.70)
+ text(d,(540,715),"SPECULATIVE EXECUTION",27,MUTED,True)
+ for i,(label,x,col) in enumerate((("PATH A",90,CYAN),("PATH B",565,GOLD))):
+  panel(d,(x,760,x+420,1050),col)
+  text(d,(x+210,795),label,33,col,True)
+  for k,op in enumerate(("LOAD","ADD","XOR") if i==0 else ("LOAD","SUB","AND")):
+   y=855+k*68
+   active=(5+k*1.2<=t<15+k*.20) if i==0 else (20+k*.85<=t)
+   invalid=i==0 and t>=15+k*.20
+   cc=red if invalid else col if active else MUTED
+   d.rounded_rectangle((x+23,y-22,x+397,y+25),radius=8,outline=cc,fill=(25,48,63),width=2)
+   text(d,(x+100,y),op,24,cc,True)
+   text(d,(x+292,y),"SQUASH" if invalid else "RESULT" if active else "WAIT",22,cc)
+   if active:
+    q=ease((t-(5 if i==0 else 20)-k*.85)/.8)
+    wire(d,[(x+31,y+20),(x+31+356*q,y+20)],cc,3)
+   if invalid:
+    q=ease((t-15-k*.2)/.4)
+    wire(d,[(x+30,y),(x+30+360*q,y)],red,4)
+ wire(d,[(300,658),(300,760)],CYAN,7)
+ wire(d,[(780,658),(780,760)],GOLD,7)
+ if 5<=t<15:packet(d,300,660+90*((t-5)*.8%1),"uOP",CYAN,.65)
+ if t>=20:packet(d,780,660+90*((t-20)*.9%1),"uOP",GOLD,.65)
+ text(d,(540,1110),"REORDER BUFFER  /  IN-ORDER RETIREMENT",26,MUTED,True)
+ for k in range(4):
+  x=90+k*230
+  valid= t>=20+k*.8
+  speculative=5+k*.8<=t<15
+  killed=15<=t<20
+  col=GREEN if valid else RED if killed else CYAN if speculative else MUTED
+  panel(d,(x,1150,x+210,1290),col)
+  text(d,(x+105,1185),"B"+str(k+1) if valid else "A"+str(k+1) if speculative or killed else "EMPTY",28,col,True)
+  text(d,(x+105,1247),"READY" if valid else "INVALID" if killed else "HOLD" if speculative else "WAIT",24,col)
+ wire(d,[(540,1290),(540,1340)],GREEN if t>=23 else MUTED,8)
+ chip(d,285,1340,510,120,"ARCHITECTURAL STATE",GREEN if t>=23 else MUTED,"B committed" if t>=23 else "No speculative commit")
+ target=(65,500,1010,680) if t<5 else (68,741,531,1070) if t<15 else (68,1130,1010,1310) if t<20 else (550,740,1010,1070) if t<23 else (265,1320,815,1480)
+ focus(d,t,target,GOLD if t<20 else GREEN)
+ transient(d,t,[(0,5,"Decode a conditional branch"),(5,10.2,"Predict A: execute ahead"),(10.2,15,"Hold speculative results"),(15,20,"Wrong guess: squash A"),(20,27.9,"Redirect to B and retire")])
  return im
 def regen(t):
  im,d=base("HOW BRAKING RECHARGES")
- # Wheel -> shaft -> motor generator -> inverter -> battery, persistent charge.
- circle(d,250,740,175,(26,54,72));circle(d,250,740,140,CYAN,12)
- angle=t*1.8
- for i in range(8):
-  a=angle+i*math.pi/4
-  wire(d,[(250,740),(250+130*math.cos(a),740+130*math.sin(a))],(100,156,177),8)
- wire(d,[(390,740),(650,740)],(130,172,188),26)
- circle(d,700,740,118,(34,65,82));circle(d,700,740,112,GOLD,8)
+ # Shared shaft, rotor/stator cutaway, phase-current paths and pack cells.
+ t0=max(0.,t-5)
+ speed=1-.68*ease(t0/23)
+ angle=2.9*(min(t,5)+t0-.34*t0*t0/23)
+ text(d,(540,352),"MOTION  →  ELECTRICITY",29,GOLD,True)
+ text(d,(270,414),"WHEEL SPEED",24,MUTED,True)
+ text(d,(270,455),f"{int(speed*100)}%",37,CYAN,True)
+ text(d,(790,414),"BRAKE REQUEST",24,MUTED,True)
+ text(d,(790,455),"ACTIVE" if t>=5 else "COAST",31,GOLD if t>=5 else MUTED,True)
+ # wheel cutaway and coupled shaft
+ circle(d,238,720,173,(29,39,52))
+ circle(d,238,720,158,(100,140,156),16)
+ for i in range(20):
+  a=angle+i*math.tau/20
+  wire(d,[(238+158*math.cos(a),720+158*math.sin(a)),(238+171*math.cos(a+.04),720+171*math.sin(a+.04))],MUTED,5)
+ circle(d,238,720,112,(13,29,44))
  for i in range(6):
-  a=angle*.6+i*math.pi/3
-  circle(d,700+72*math.cos(a),740+72*math.sin(a),13,GOLD)
- text(d,(700,925),"MOTOR / GENERATOR",29,GOLD,True)
- wire(d,[(700,858),(700,1060),(440,1060),(440,1220)],(68,125,145),13)
- d.rounded_rectangle((290,1200,590,1380),radius=22,fill=(22,58,72),outline=CYAN,width=6)
- text(d,(440,1252),"INVERTER",29,CYAN,True)
- d.rounded_rectangle((640,1200,955,1400),radius=24,fill=(27,63,75),outline=GREEN,width=6)
- text(d,(795,1252),"BATTERY",29,GREEN,True)
- wire(d,[(590,1300),(640,1300)],GREEN,10)
+  a=angle+i*math.tau/6
+  wire(d,[(238+30*math.cos(a),720+30*math.sin(a)),(238+104*math.cos(a),720+104*math.sin(a))],(162,191,205),14)
+ circle(d,238,720,35,(155,186,199))
+ wire(d,[(273,720),(700,720)],(90,128,147),33)
+ for j in range(8):
+  x=340+j*45
+  y=720+8*math.sin(angle*2+j*.5)
+  wire(d,[(x-9,y-11),(x+9,y+11)],(194,213,221),3)
+ # stator / rotor with fixed coils and rotating magnets
+ circle(d,737,720,180,(38,58,71))
+ circle(d,737,720,166,(128,163,176),6)
+ circle(d,737,720,123,(9,24,39))
+ for i in range(6):
+  a=i*math.tau/6
+  x=737+145*math.cos(a);y=720+145*math.sin(a)
+  c=GOLD if t>=10 and math.sin(angle+a)>.0 else (151,97,56)
+  for k in range(3):circle(d,x+(k-1)*8,y,19,c,3)
+ for i in range(4):
+  a=angle+i*math.tau/4
+  x=737+80*math.cos(a);y=720+80*math.sin(a)
+  circle(d,x,y,34,CYAN if i%2==0 else RED)
+  text(d,(x,y),"N" if i%2==0 else "S",24,(10,21,33),True)
+ circle(d,737,720,30,(157,188,202))
  if t>=5:
-  for i in range(4):
-   p=((t-5)*.5+i*.25)%1
-   circle(d,700,858+202*p,11,GOLD)
- if t>=12:
+  a=-angle
+  d.arc((185,667,291,773),start=math.degrees(a)%360,end=math.degrees(a)%360+230,fill=GOLD,width=6)
+  text(d,(238,933),"COUNTER-TORQUE",24,GOLD,True)
+ text(d,(737,933),"ROTOR + STATOR",29,GOLD,True)
+ # all 3 phase wires visibly connected to power electronics
+ cols=[GOLD,CYAN,(190,138,255)]
+ for i,c in enumerate(cols):
+  x=687+i*50
+  wire(d,[(x,882),(x,1003),(340+i*35,1003),(340+i*35,1090)],c if t>=10 else MUTED,6)
+  if t>=10:
+   p=((t-10)*.7+i/3)%1
+   circle(d, x,882+121*p,9,c)
+ panel(d,(90,1090,520,1355),CYAN)
+ text(d,(305,1130),"INVERTER",33,CYAN,True)
+ # schematic phase waveform and DC bus; never show physical electrons as moving slugs
+ for i,c in enumerate(cols):
+  pts=[(119+j*2,1200+24*math.sin(j*.09-angle+i*math.tau/3)) for j in range(107)]
+  wire(d,pts,c if t>=10 else MUTED,3)
+ wire(d,[(343,1190),(480,1190)],GREEN if t>=15 else MUTED,5)
+ wire(d,[(343,1221),(480,1221)],GREEN if t>=15 else MUTED,5)
+ text(d,(305,1305),"3-phase AC to DC",26,GREEN if t>=15 else MUTED)
+ wire(d,[(520,1175),(595,1175)],GREEN if t>=15 else MUTED,9)
+ wire(d,[(520,1275),(595,1275)],GREEN if t>=15 else MUTED,9)
+ panel(d,(595,1090,990,1355),GREEN)
+ text(d,(792,1130),"BATTERY PACK",30,GREEN,True)
+ charge=ease((t-20)/8)
+ for k in range(5):
+  x=630+k*65
+  d.rounded_rectangle((x,1185,x+55,1300),radius=7,outline=MUTED,width=3,fill=(19,43,56))
+  height=18+74*charge
+  d.rounded_rectangle((x+6,1294-height,x+49,1294),radius=4,fill=GREEN)
+  wire(d,[(x+20,1178),(x+35,1178)],MUTED,4)
+ if t>=20:
   for i in range(3):
-   p=((t-12)*.45+i/3)%1
-   circle(d,440,1060+140*p,10,CYAN)
- if t>=18:
-  for i in range(3):
-   p=((t-18)*.55+i/3)%1
-   circle(d,590+50*p,1300,11,GREEN)
-  level=clamp((t-18)/9)
-  d.rounded_rectangle((675,1320,675+240*level,1355),radius=8,fill=GREEN)
- text(d,(540,465),"KINETIC ENERGY  →  ELECTRICAL ENERGY",30,GOLD,True)
- transient(d,t,[(0,3,"The moving wheel drives the shaft"),(5,8,"Rotor motion induces electrical output"),(12,15,"Power electronics condition the current"),(18,22,"Energy enters the battery")])
+   p=((t-20)*.65+i/3)%1
+   circle(d,520+75*p,1175,7,GREEN)
+ text(d,(540,1430),"Energy recovered < kinetic energy lost",28,MUTED)
+ target=(50,515,424,916) if t<5 else (50,515,424,960) if t<10 else (550,515,940,960) if t<15 else (70,1070,540,1370) if t<20 else (575,1070,1010,1370)
+ focus(d,t,target,GOLD if t<15 else GREEN)
+ transient(d,t,[(0,5,"Wheels drive the shaft"),(5,10,"Generator torque slows the wheel"),(10,15,"Rotating field induces AC"),(15,20,"Power electronics feed the DC bus"),(20,27.9,"Store part of the energy")])
  return im
+NARRATION={
+ "branch":[(.25,5,"The processor guesses the next instruction before the branch resolves."),(5,10.2,"It predicts path A and starts work before it knows the answer."),(10.2,15,"Speculative results wait. They cannot retire yet."),(15,20,"The branch resolves to B. Wrong path entries are flushed."),(20,27.8,"Fetch redirects to B. Correct results can now retire in order.")],
+ "regen":[(.25,5,"When you brake, the wheels can drive the electric motor."),(5,10,"Generator torque opposes rotation. The car slows down."),(10,15,"The rotating magnetic field induces alternating current in the coils."),(15,20,"Power electronics convert this energy to direct current."),(20,27.8,"The battery stores some energy. The rest is lost as heat.")]
+}
 def audio(path,kind):
- sr=24000;n=sr*DURATION;signal=np.zeros(n,dtype=np.float32)
- events=[0.8,4,15,21] if kind=="branch" else [1,5,12,18]
- for k,t in enumerate(events):
-  start=int(t*sr);length=int(.18*sr);u=np.arange(length)/sr
-  env=np.exp(-u*25)
-  signal[start:start+length]+=.12*env*np.sin(2*np.pi*(360+k*115)*u)
+ sr=24000;signal=np.zeros(sr*DURATION,dtype=np.float32)
+ with tempfile.TemporaryDirectory() as tmp:
+  for i,(start,end,line) in enumerate(NARRATION[kind]):
+   script=os.path.join(tmp,"speech.txt")
+   with open(script,"w",encoding="ascii") as f:f.write(line)
+   raw=subprocess.check_output(["ffmpeg","-v","error","-f","lavfi","-i","flite=textfile="+script+":voice=slt","-ar",str(sr),"-ac","1","-f","s16le","-"])
+   voice=np.frombuffer(raw,dtype="<i2").astype(np.float32)/32768
+   assert len(voice)<=round((end-start)*sr),(kind,line,len(voice)/sr)
+   pos=round(start*sr)
+   peak=max(float(np.max(np.abs(voice))),.01)
+   signal[pos:pos+len(voice)]+=voice*(.55/peak)
+   u=np.arange(int(.14*sr))/sr
+   signal[pos:pos+len(u)]+=.055*np.exp(-u*23)*np.sin(2*np.pi*(400+i*95)*u)
+ # Regression gate: speech must occupy materially more than the prior isolated tones.
+ active=np.mean(np.abs(signal)>.01)
+ assert active>.08,(kind,active)
  with wave.open(path,"wb") as f:
   f.setnchannels(1);f.setsampwidth(2);f.setframerate(sr)
   f.writeframes((np.clip(signal,-1,1)*32767).astype("<i2").tobytes())
