@@ -1,0 +1,76 @@
+{
+  "schema": 1,
+  "mode": "reference-only; no executable dependencies installed",
+  "sources": [
+    {
+      "path": "skills/egi/vendor/manimce/SKILL.md",
+      "upstream_blob_sha": "0f77bbaa9f1ffd6c875f250ccadd5e323d454580",
+      "source": "https://github.com/adithya-s-k/manim_skill/blob/cef045011722d285692e3381d12d4d637da56e18/skills/manimce-best-practices/SKILL.md"
+    },
+    {
+      "path": "skills/egi/vendor/manimce/LICENSE.txt",
+      "upstream_blob_sha": "9cb10fedee131dd19b41ecc85f5448a872cdcc7b",
+      "source": "https://github.com/adithya-s-k/manim_skill/blob/cef045011722d285692e3381d12d4d637da56e18/skills/manimce-best-practices/LICENSE.txt"
+    },
+    {
+      "path": "skills/egi/vendor/manimce/rules/camera.md",
+      "upstream_blob_sha": "f56b7535cb026af423917110828ed5cd9aa77659",
+      "source": "https://github.com/adithya-s-k/manim_skill/blob/cef045011722d285692e3381d12d4d637da56e18/skills/manimce-best-practices/rules/camera.md"
+    },
+    {
+      "path": "skills/egi/vendor/manimce/rules/timing.md",
+      "upstream_blob_sha": "3e5eafc58ef23b2d4b7bc4e1c2f305d01601f346",
+      "source": "https://github.com/adithya-s-k/manim_skill/blob/cef045011722d285692e3381d12d4d637da56e18/skills/manimce-best-practices/rules/timing.md"
+    },
+    {
+      "path": "skills/egi/vendor/manimce/rules/updaters.md",
+      "upstream_blob_sha": "2842356763ff7a86c6dc6009e0994145429f5504",
+      "source": "https://github.com/adithya-s-k/manim_skill/blob/cef045011722d285692e3381d12d4d637da56e18/skills/manimce-best-practices/rules/updaters.md"
+    },
+    {
+      "path": "skills/egi/vendor/anatomy/SKILL.md",
+      "upstream_blob_sha": "2707a733f7b6c511d99beb789d26a2c06ae8e5ff",
+      "source": "https://github.com/orinocoz/anatomyskill/blob/e6600ffc4e8e6620eeb45bf49bcdbd5e4b84163f/SKILL.md"
+    },
+    {
+      "path": "skills/egi/vendor/anatomy/LICENSE",
+      "upstream_blob_sha": "aa20733917ffc919b6b04834e6a6e22909df7c76",
+      "source": "https://github.com/orinocoz/anatomyskill/blob/e6600ffc4e8e6620eeb45bf49bcdbd5e4b84163f/LICENSE"
+    },
+    {
+      "path": "skills/egi/vendor/motion/iart/LICENSE",
+      "upstream_blob_sha": "a61b911146037f2ef312f67e9b45de6c99b7f870",
+      "source": "https://github.com/VisualxIntelligence/motion-tools-and-skills/blob/0d00fd179880bad18b8ce479ead8c010070496c2/docs/guides/iart-motion-fundamentals/LICENSE"
+    },
+    {
+      "path": "skills/egi/vendor/motion/iart/diagram-animation/SKILL.md",
+      "upstream_blob_sha": "9e57fe0dc0459ff4db5c9cd4675fcf02978ed980",
+      "source": "https://github.com/VisualxIntelligence/motion-tools-and-skills/blob/0d00fd179880bad18b8ce479ead8c010070496c2/docs/guides/iart-motion-fundamentals/diagram-animation/SKILL.md"
+    },
+    {
+      "path": "skills/egi/vendor/motion/iart/isometric-animation/SKILL.md",
+      "upstream_blob_sha": "000c63e1c154b55667c873a986294235678fe2ff",
+      "source": "https://github.com/VisualxIntelligence/motion-tools-and-skills/blob/0d00fd179880bad18b8ce479ead8c010070496c2/docs/guides/iart-motion-fundamentals/isometric-animation/SKILL.md"
+    },
+    {
+      "path": "skills/egi/vendor/motion/iart/shot-composition/SKILL.md",
+      "upstream_blob_sha": "90723872d1284c0da7d7d3fa5e675104d79788b5",
+      "source": "https://github.com/VisualxIntelligence/motion-tools-and-skills/blob/0d00fd179880bad18b8ce479ead8c010070496c2/docs/guides/iart-motion-fundamentals/shot-composition/SKILL.md"
+    },
+    {
+      "path": "skills/egi/vendor/motion/video-production/LICENSE",
+      "upstream_blob_sha": "3b5a2cce067487bd67b2d8565f7fe8321e1989dc",
+      "source": "https://github.com/VisualxIntelligence/motion-tools-and-skills/blob/0d00fd179880bad18b8ce479ead8c010070496c2/skills/video-production-skills/LICENSE"
+    },
+    {
+      "path": "skills/egi/vendor/motion/video-production/explainer-motion/SKILL.en.md",
+      "upstream_blob_sha": "eff57820deed9c67313123b697cfe486c574ca4c",
+      "source": "https://github.com/VisualxIntelligence/motion-tools-and-skills/blob/0d00fd179880bad18b8ce479ead8c010070496c2/skills/video-production-skills/skills/explainer-motion/SKILL.en.md"
+    },
+    {
+      "path": "skills/egi/vendor/motion/video-production/video-release-qa/SKILL.en.md",
+      "upstream_blob_sha": "1e8c2b7521b2b81dd6612e984cb1dcbab110d272",
+      "source": "https://github.com/VisualxIntelligence/motion-tools-and-skills/blob/0d00fd179880bad18b8ce479ead8c010070496c2/skills/video-production-skills/skills/video-release-qa/SKILL.en.md"
+    }
+  ]
+}
