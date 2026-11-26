@@ -10,7 +10,8 @@ S=bpy.context.scene
 S.render.engine='CYCLES'
 S.cycles.device='CPU'
 S.cycles.samples=8
-S.cycles.use_denoising=True
+# Ubuntu packaged Cycles was built without OpenImageDenoiser.
+S.cycles.use_denoising=False
 S.cycles.max_bounces=4
 S.render.resolution_x=540
 S.render.resolution_y=960
