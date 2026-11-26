@@ -1,0 +1,66 @@
+name: EGI Blender + Kokoro isolated 3D pilot
+on:
+  push:
+    branches: [rd-egi-blender-kokoro-pilot]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  preview:
+    if: github.ref == 'refs/heads/rd-egi-blender-kokoro-pilot'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      PYTHONUNBUFFERED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Isolated dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends blender ffmpeg espeak-ng libsndfile1 fonts-dejavu-core
+          blender --version
+          python -m venv .venv
+          . .venv/bin/activate
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.6.0'
+          python -m pip install 'kokoro==0.9.4' soundfile pillow
+          python -m py_compile egi_preview/blender_regen_pilot.py egi_preview/blender_kokoro_audio.py
+          python -c "from kokoro import KPipeline; import torch; print(torch.__version__)"
+      - name: Blender CPU render
+        run: |
+          mkdir -p frames preview
+          /usr/bin/time -v -o preview/blender-benchmark.txt blender -b -t 4 --python-exit-code 1 --python egi_preview/blender_regen_pilot.py > blender-render.log 2>&1 || { tail -100 blender-render.log; exit 1; }
+          tail -20 blender-render.log
+          test "$(find frames -name 'f_*.png' | wc -l)" -eq 192
+      - name: Kokoro speech and composite
+        run: |
+          . .venv/bin/activate
+          /usr/bin/time -v -o preview/kokoro-composite-benchmark.txt python egi_preview/blender_kokoro_audio.py
+          ffmpeg -v error -i preview/EGI_Blender_Kokoro_Regenerative_Braking.mp4 -f null -
+          ffprobe -v error -show_streams -show_format -of json preview/EGI_Blender_Kokoro_Regenerative_Braking.mp4 > preview/probe.json
+          python - <<'PY'
+          import json
+          p=json.load(open('preview/probe.json'))
+          v=next(s for s in p['streams'] if s['codec_type']=='video')
+          a=next(s for s in p['streams'] if s['codec_type']=='audio')
+          assert (v['width'],v['height'],v['codec_name'])==(1080,1920,'h264')
+          assert v['avg_frame_rate']=='24/1' and a['codec_name']=='aac'
+          assert abs(float(p['format']['duration'])-16)<.2
+          print('MEDIA_QA_PASS; native 540x960/12 fps, upscaled and frame-doubled')
+          PY
+          for t in 1 5 8 12 15; do
+            ffmpeg -v error -ss "$t" -i preview/EGI_Blender_Kokoro_Regenerative_Braking.mp4 -frames:v 1 -y "preview/frame-$t.jpg"
+          done
+          sha256sum preview/EGI_Blender_Kokoro_Regenerative_Braking.mp4 > preview/SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: egi-blender-kokoro-comparison
+          path: |
+            preview/
+            blender-render.log
+          if-no-files-found: warn
+          retention-days: 7
