@@ -1,0 +1,57 @@
+name: EGI ManimCE isolated comparison pilot
+on:
+  push:
+    branches: [rd-egi-manim-pilot]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  preview:
+    if: github.ref == 'refs/heads/rd-egi-manim-pilot'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install isolated render dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg espeak-ng libcairo2-dev libpango1.0-dev pkg-config fonts-dejavu-core
+          python -m venv .venv
+          . .venv/bin/activate
+          python -m pip install 'manim==0.19.0'
+          manim --version
+      - name: Render comparison scene
+        run: |
+          . .venv/bin/activate
+          mkdir -p preview
+          python -m py_compile egi_preview/manim_regen_pilot.py
+          /usr/bin/time -v -o preview/render-benchmark.txt manim --renderer cairo --disable_caching --media_dir media -r 1080,1920 --fps 24 -o visual.mp4 egi_preview/manim_regen_pilot.py RegenPilot
+          visual="$(find media -type f -name visual.mp4 -print -quit)"
+          test -n "$visual"
+          python egi_preview/manim_pilot_audio.py "$visual" preview/EGI_Manim_Regenerative_Braking.mp4
+          ffmpeg -v error -i preview/EGI_Manim_Regenerative_Braking.mp4 -f null -
+          ffprobe -v error -show_streams -show_format -of json preview/EGI_Manim_Regenerative_Braking.mp4 > preview/probe.json
+          python - <<'PY'
+          import json
+          p=json.load(open('preview/probe.json'))
+          v=next(s for s in p['streams'] if s['codec_type']=='video')
+          a=next(s for s in p['streams'] if s['codec_type']=='audio')
+          assert (v['width'],v['height'],v['codec_name'])==(1080,1920,'h264'),v
+          assert v['avg_frame_rate']=='24/1',v
+          assert a['codec_name']=='aac',a
+          assert abs(float(p['format']['duration'])-16)<.3,p
+          print("MEDIA_QA_PASS")
+          PY
+          for t in 1 5 8 12 15; do
+            ffmpeg -v error -ss "$t" -i preview/EGI_Manim_Regenerative_Braking.mp4 -frames:v 1 -y "preview/frame-$t.jpg"
+          done
+          sha256sum preview/EGI_Manim_Regenerative_Braking.mp4 > preview/SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: egi-manim-regenerative-braking-preview
+          path: preview/
+          if-no-files-found: error
+          retention-days: 7
