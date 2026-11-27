@@ -18,9 +18,10 @@ FILES = {
     "premium-heat": "EGI_Heat_Pipe_Phase_Change_V16.mp4",
     "diff-v12": "EGI_V12_Mechanics_Open_Differential_Microanimations.mp4",
     "engine-v88": "EGI_Engine_Four_Stroke_V88.mp4",
+    "blender-prebuilt-v2": "EGI_Blender_Kokoro_V2.mp4",
 }
-DURATIONS = {"v16-software":36, "v16-technology":36, "turbo":26, "intercooler":26, "premium-ssd":32, "premium-heat":32, "diff-v12":36, "engine-v88":26}
-FPS = {"v16-software":"30/1","v16-technology":"30/1","turbo":"24/1","intercooler":"24/1", "premium-ssd":"30/1", "premium-heat":"30/1", "diff-v12":"24/1", "engine-v88":"24/1"}
+DURATIONS = {"v16-software":36, "v16-technology":36, "turbo":26, "intercooler":26, "premium-ssd":32, "premium-heat":32, "diff-v12":36, "engine-v88":26, "blender-prebuilt-v2":16}
+FPS = {"v16-software":"30/1","v16-technology":"30/1","turbo":"24/1","intercooler":"24/1", "premium-ssd":"30/1", "premium-heat":"30/1", "diff-v12":"24/1", "engine-v88":"24/1", "blender-prebuilt-v2":"30/1"}
 
 def check_catalog(cat):
     assert cat.get("strategy") == STRATEGY
@@ -38,6 +39,12 @@ def check_catalog(cat):
             assert e["title"].endswith("#Shorts")
             assert "#EGI" in e["description"]
             assert len(e["title"]) <= 100
+            if e["renderer"] == "blender-prebuilt-v2":
+                a=e["approved_asset"]
+                assert a["user_approved"] is True and a["tag"] == "egi-approved-regenerative-braking-v2"
+                assert a["file"] == FILES[e["renderer"]]
+                assert a["sha256"] == "6a1f92a8c5336fe8003de97d70b0403a1a0061f00452d605dd8801eeddef451f"
+                assert a["source_commit"] == "0eaa4d08bb2886ebc3d714b98845927033977394"
     return seen
 
 def command(e, target):
@@ -96,7 +103,14 @@ def main():
     shorts=[]
     for e in episodes:
         target = OUT / FILES[e["renderer"]]
-        subprocess.run(command(e,target),cwd=ROOT,env=env,check=True)
+        if e["renderer"] == "blender-prebuilt-v2":
+            a=e["approved_asset"]
+            url="https://github.com/hammersnow/youtube-auto-render/releases/download/"+a["tag"]+"/"+a["file"]
+            subprocess.run(["curl","-fL","--retry","4","-o",str(target),url],check=True)
+            assert hashlib.sha256(target.read_bytes()).hexdigest()==a["sha256"], "Approved asset hash mismatch"
+            subprocess.run(["ffmpeg","-v","error","-i",str(target),"-f","null","-"],check=True)
+        else:
+            subprocess.run(command(e,target),cwd=ROOT,env=env,check=True)
         if e["renderer"] in ("premium-ssd", "premium-heat"):
             original=OUT/("ssd_premium.mp4" if e["renderer"]=="premium-ssd" else "heat_premium.mp4")
             assert original.is_file(),original

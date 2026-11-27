@@ -142,6 +142,32 @@
           "shorts"
         ]
       }
+    ],
+    "2026-11-27": [
+      {
+        "id": "egi-regenerative-braking-blender-v2",
+        "category": "mechanics",
+        "renderer": "blender-prebuilt-v2",
+        "title": "How Regenerative Braking Turns Motion Into Electricity ⚡ #Shorts",
+        "description": "See how rotating wheels drive a motor acting as a generator, how its windings produce three-phase AC, and how power electronics return some energy to the battery. Original simplified 3D engineering visualization by EGI. #Engineering #RegenerativeBraking #ElectricVehicles #EGI",
+        "tags": [
+          "regenerative braking",
+          "electric vehicles",
+          "electric motor",
+          "inverter",
+          "engineering",
+          "shorts"
+        ],
+        "approved_asset": {
+          "tag": "egi-approved-regenerative-braking-v2",
+          "file": "EGI_Blender_Kokoro_V2.mp4",
+          "sha256": "6a1f92a8c5336fe8003de97d70b0403a1a0061f00452d605dd8801eeddef451f",
+          "source_commit": "0eaa4d08bb2886ebc3d714b98845927033977394",
+          "source_run": 45938677845,
+          "source_artifact": 15175761803,
+          "user_approved": true
+        }
+      }
     ]
   }
 }

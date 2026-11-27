@@ -1,0 +1,73 @@
+name: EGI approved Blender V2 release bridge
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/egi-approved-v2-release.yml']
+  workflow_dispatch:
+permissions:
+  actions: write
+  contents: write
+concurrency:
+  group: egi-approved-v2-release
+  cancel-in-progress: false
+jobs:
+  archive-and-dispatch:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TZ: Europe/Istanbul
+      DAY: '2026-11-27'
+      TAG: 'egi-approved-regenerative-braking-v2'
+      VIDEO: 'EGI_Blender_Kokoro_V2.mp4'
+      APPROVED_SHA: '6a1f92a8c5336fe8003de97d70b0403a1a0061f00452d605dd8801eeddef451f'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check approved day, catalog and source identity
+        run: |
+          set -euo pipefail
+          test "$(date +%F)" = "$DAY"
+          python3 scripts/render_egi_daily.py --day "$DAY" --check-only
+          gh api repos/${{ github.repository }}/actions/runs/45938677845 > source.json
+          python3 - <<'PY'
+          import json,os
+          r=json.load(open('source.json'))
+          assert r['head_sha']=='0eaa4d08bb2886ebc3d714b98845927033977394' and r['conclusion']=='success'
+          c=json.load(open('config/egi_episode_catalog.json'))
+          e=c['schedule'][os.environ['DAY']]
+          assert len(e)==1 and e[0]['id']=='egi-regenerative-braking-blender-v2'
+          assert e[0]['approved_asset']['sha256']==os.environ['APPROVED_SHA']
+          PY
+      - uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: 45938677845
+          name: egi-blender-v2-full-preview
+          path: approved
+      - name: Verify exact user-approved MP4
+        run: |
+          set -euo pipefail
+          echo "$APPROVED_SHA  approved/$VIDEO" | sha256sum --check
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          ffmpeg -v error -i "approved/$VIDEO" -f null -
+          ffprobe -v error -show_streams -show_format -of json "approved/$VIDEO" > checked.json
+          python3 - <<'PY'
+          import json
+          p=json.load(open('checked.json'));v=next(x for x in p['streams'] if x['codec_type']=='video');a=next(x for x in p['streams'] if x['codec_type']=='audio')
+          assert (v['codec_name'],v['width'],v['height'],v['avg_frame_rate'],int(v['nb_frames']))==('h264',1080,1920,'30/1',480)
+          assert a['codec_name']=='aac' and abs(float(p['format']['duration'])-16)<.1
+          PY
+      - name: Preserve approved asset without overwrite, then dispatch existing daily pipeline
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            mkdir -p existing
+            gh release download "$TAG" --pattern "$VIDEO" --dir existing
+            echo "$APPROVED_SHA  existing/$VIDEO" | sha256sum --check
+          else
+            gh release create "$TAG" "approved/$VIDEO" --target "$GITHUB_SHA" --title "EGI approved regenerative braking Blender V2" --notes "User approved 2026-11-27. Source run 45938677845; exact SHA256 $APPROVED_SHA." --latest=false
+          fi
+          gh workflow run egi-daily.yml --ref main
+          echo EGI_APPROVED_V2_DAILY_DISPATCHED
