@@ -1,4 +1,4 @@
-name: EGI premium Blender V2 native quality benchmark
+name: EGI premium Blender V2 parallel native render
 on:
   push:
     branches: [rd-egi-blender-kokoro-pilot]
@@ -7,63 +7,118 @@ permissions:
   contents: read
 concurrency:
   group: egi-blender-v2-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 jobs:
-  preflight:
+  prepare:
     if: github.ref == 'refs/heads/rd-egi-blender-kokoro-pilot'
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
-    outputs:
-      proceed: ${{ steps.gate.outputs.proceed }}
+    timeout-minutes: 20
     env:
-      EGI_RENDER_MODE: preflight
-      HF_HUB_DISABLE_TELEMETRY: '1'
-      PYTHONUNBUFFERED: '1'
+      EGI_RENDER_MODE: prepare
+      EGI_INSTALL_MODE: render
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Install pinned official Blender LTS and Kokoro
+      - name: Install checksum-verified Blender LTS
         run: bash egi_preview/install_blender_v2.sh
-      - name: Native 1080p OIDN benchmark and camera anchors
+      - name: Freeze common scene and projected labels
         run: |
           mkdir -p frames preview
-          /usr/bin/time -v -o preview/blender-benchmark.txt /tmp/egi-blender/blender -b -t 4 --python-exit-code 1 --python egi_preview/blender_regen_v2.py > blender-render.log 2>&1 || { tail -100 blender-render.log; exit 1; }
-          tail -20 blender-render.log
-      - name: Compose tracked labels and Kokoro narration
-        run: |
-          . .venv/bin/activate
-          python egi_preview/blender_kokoro_v2.py
-          test "$(find preview -name 'v2-frame-*.jpg' | wc -l)" -eq 5
-      - name: Native render resource gate (no quality downgrade)
-        id: gate
-        run: |
+          /tmp/egi-blender/blender -b -t 4 --python-exit-code 1 --python egi_preview/blender_regen_v2.py > prepare.log 2>&1 || { tail -100 prepare.log; exit 1; }
+          tail -10 prepare.log
           python - <<'PY'
-          import json,os
-          d=json.load(open('preview/preflight.json'))
-          estimate=d['estimate_minutes']
-          print('480 frame estimate, minutes:',estimate)
-          proceed=estimate<=180
-          with open(os.environ['GITHUB_OUTPUT'],'a') as f:f.write('proceed='+str(proceed).lower()+'\n')
-          if not proceed:print('BLOCKED_RENDER_BUDGET: native quality unchanged')
+          import json
+          d=json.load(open('preview/geometry.json'))
+          assert d['native']==[1080,1920,30] and d['frames']==480 and d['samples']==32 and d['denoise']=='OPENIMAGEDENOISE'
+          assert len(json.load(open('preview/anchors.json')))==480
           PY
+          (cd preview && sha256sum egi_regen_v2.blend anchors.json geometry.json > scene.sha256)
       - uses: actions/upload-artifact@v4
-        if: always()
         with:
-          name: egi-blender-v2-native-preflight
+          name: egi-v2-common-scene
           path: |
-            preview/
-            blender-render.log
-          if-no-files-found: warn
-          retention-days: 7
-  full:
-    needs: preflight
-    if: needs.preflight.outputs.proceed == 'true'
+            preview/egi_regen_v2.blend
+            preview/anchors.json
+            preview/geometry.json
+            preview/scene.sha256
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+  render:
+    needs: prepare
     runs-on: ubuntu-24.04
-    timeout-minutes: 240
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        include:
+          - shard: 0
+            start: 1
+            end: 60
+          - shard: 1
+            start: 61
+            end: 120
+          - shard: 2
+            start: 121
+            end: 180
+          - shard: 3
+            start: 181
+            end: 240
+          - shard: 4
+            start: 241
+            end: 300
+          - shard: 5
+            start: 301
+            end: 360
+          - shard: 6
+            start: 361
+            end: 420
+          - shard: 7
+            start: 421
+            end: 480
+    env:
+      EGI_INSTALL_MODE: render
+      SHARD: ${{ matrix.shard }}
+      START: ${{ matrix.start }}
+      END: ${{ matrix.end }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/download-artifact@v4
+        with:
+          name: egi-v2-common-scene
+          path: preview
+      - name: Install checksum-verified Blender LTS
+        run: bash egi_preview/install_blender_v2.sh
+      - name: Verify scene and render 60 native frames
+        run: |
+          (cd preview && sha256sum --check scene.sha256)
+          mkdir -p frames
+          /usr/bin/time -v -o benchmark.txt /tmp/egi-blender/blender -b preview/egi_regen_v2.blend -t 4 --python-exit-code 1 -o "$PWD/frames/f_####" -s "$START" -e "$END" -a > render.log 2>&1 || { tail -100 render.log; exit 1; }
+          tail -10 render.log
+          python egi_preview/check_blender_v2_shard.py "$SHARD" "$START" "$END"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: egi-v2-shard-${{ matrix.shard }}
+          path: |
+            frames/
+            manifest.json
+            benchmark.txt
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+  compose:
+    needs: [prepare, render]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
     env:
       EGI_RENDER_MODE: full
+      EGI_INSTALL_MODE: compose
       HF_HUB_DISABLE_TELEMETRY: '1'
       PYTHONUNBUFFERED: '1'
     steps:
@@ -71,14 +126,22 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Install pinned official Blender LTS and Kokoro
-        run: bash egi_preview/install_blender_v2.sh
-      - name: Render native 1080x1920 at 30fps, OIDN
+      - uses: actions/download-artifact@v4
+        with:
+          name: egi-v2-common-scene
+          path: preview
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: egi-v2-shard-*
+          path: shards
+          merge-multiple: false
+      - name: Install Kokoro and validate all frame shards
         run: |
-          mkdir -p frames preview
-          /usr/bin/time -v -o preview/blender-benchmark.txt /tmp/egi-blender/blender -b -t 4 --python-exit-code 1 --python egi_preview/blender_regen_v2.py > blender-render.log 2>&1 || { tail -100 blender-render.log; exit 1; }
-          test "$(find frames -name 'f_*.png' | wc -l)" -eq 480
-      - name: Compose labels, voice and validate output
+          bash egi_preview/install_blender_v2.sh
+          . .venv/bin/activate
+          (cd preview && sha256sum --check scene.sha256)
+          python egi_preview/gather_blender_v2_shards.py "$GITHUB_SHA"
+      - name: Compose tracked labels, Kokoro narration and final MP4
         run: |
           . .venv/bin/activate
           /usr/bin/time -v -o preview/composite-benchmark.txt python egi_preview/blender_kokoro_v2.py
@@ -95,13 +158,10 @@ jobs:
           for t in 1 5 8 12 15; do
             ffmpeg -v error -ss "$t" -i preview/EGI_Blender_Kokoro_V2.mp4 -frames:v 1 -y "preview/frame-$t.jpg"
           done
-          sha256sum preview/EGI_Blender_Kokoro_V2.mp4 > preview/SHA256SUMS
+          (cd preview && sha256sum EGI_Blender_Kokoro_V2.mp4 > SHA256SUMS)
       - uses: actions/upload-artifact@v4
-        if: always()
         with:
           name: egi-blender-v2-full-preview
-          path: |
-            preview/
-            blender-render.log
-          if-no-files-found: warn
+          path: preview/
+          if-no-files-found: error
           retention-days: 7

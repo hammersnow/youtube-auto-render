@@ -319,7 +319,10 @@ assert all(len(o.data.vertices)>0 and len(o.data.polygons)>0 for o in S.objects 
 with open('preview/geometry.json','w') as f:json.dump({'blender':bpy.app.version_string,'meshes':sum(o.type=='MESH' for o in S.objects),'objects':len(S.objects),'native':[1080,1920,FPS],'frames':N,'samples':S.cycles.samples,'denoise':S.cycles.denoiser,'scope':'geometry presence and anchor projection; full AV and physics review pending'},f,indent=2)
 S.frame_set(1)
 bpy.ops.wm.save_as_mainfile(filepath=os.path.abspath('preview/egi_regen_v2.blend'))
-if os.environ.get('EGI_RENDER_MODE','preflight')=='preflight':
+mode=os.environ.get('EGI_RENDER_MODE','preflight')
+if mode=='prepare':
+    print('SCENE_PREPARED: native 1080x1920, 30fps, 32 samples, OIDN')
+elif mode=='preflight':
     timings=[]
     for f in (31,136,241,346,436):
         S.frame_set(f)
