@@ -1,0 +1,59 @@
+{
+  "upstream": "EL4CTEO/blender-skills",
+  "commit": "1a1cc6c49312f9f370aae86f52b7b907f29c94f6",
+  "mode": "reference-only",
+  "sources": [
+    {
+      "path": "LICENSE",
+      "blob_sha": "3f709c423026e30972b83813fc8a58a71495abf0"
+    },
+    {
+      "path": "skills/blender-core/SKILL.md",
+      "blob_sha": "2cc902160a756a32548d14b54aa7497a028a865c"
+    },
+    {
+      "path": "skills/blender-hardsurface-modeling/SKILL.md",
+      "blob_sha": "445541101146700d09821a1af3169386e9042e0c"
+    },
+    {
+      "path": "skills/blender-animation/SKILL.md",
+      "blob_sha": "365adfb4690523661461f192b9f03f3724859bd2"
+    },
+    {
+      "path": "skills/blender-lighting-lookdev/SKILL.md",
+      "blob_sha": "71315c4fdff623c722c7f4a210c48dc8d0a0c54a"
+    },
+    {
+      "path": "skills/blender-rendering/SKILL.md",
+      "blob_sha": "ea128a310dd30c0a5ce2ed13ff8e0c6dcea8fde0"
+    },
+    {
+      "path": "skills/blender-pbr-materials/SKILL.md",
+      "blob_sha": "bf6672b927e80613024354e0217c1c264b1f05fa"
+    },
+    {
+      "path": "skills/blender-asset-qa/SKILL.md",
+      "blob_sha": "992ea8ed5b14a9de27841ee9f6bde5f890aafc15"
+    },
+    {
+      "path": "skills/blender-simulation/SKILL.md",
+      "blob_sha": "843241ddb1409a37a468f5cb27c916022fc9054b"
+    },
+    {
+      "path": "skills/blender-scene-setup/SKILL.md",
+      "blob_sha": "a07314eb804637ff009cd7d11efbfe8a64fd59be"
+    },
+    {
+      "path": "skills/blender-geometry-nodes/SKILL.md",
+      "blob_sha": "62054759f1a89b88f882c4b21a7d6bb6cdf4ad03"
+    },
+    {
+      "path": "skills/blender-video-editing/SKILL.md",
+      "blob_sha": "e663a1cc87372946665e58546c38e66afb7329b0"
+    },
+    {
+      "path": "skills/blender-workflow-recipes/SKILL.md",
+      "blob_sha": "ce270398549b1000c12997ed28dbfc24b31d57ff"
+    }
+  ]
+}
