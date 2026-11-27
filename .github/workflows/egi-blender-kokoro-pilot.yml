@@ -12,7 +12,7 @@ jobs:
   prepare:
     if: github.ref == 'refs/heads/rd-egi-blender-kokoro-pilot'
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 45
     env:
       EGI_RENDER_MODE: prepare
       EGI_INSTALL_MODE: render
@@ -35,6 +35,15 @@ jobs:
           assert len(json.load(open('preview/anchors.json')))==480
           PY
           (cd preview && sha256sum egi_regen_v2.blend anchors.json geometry.json > scene.sha256)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: egi-v2-blender-dist
+          path: |
+            blender-dist/blender-4.5.16-linux-x64.tar.xz
+            blender-dist/blender.sha256
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
       - uses: actions/upload-artifact@v4
         with:
           name: egi-v2-common-scene
@@ -81,6 +90,7 @@ jobs:
             end: 480
     env:
       EGI_INSTALL_MODE: render
+      EGI_BLENDER_BUNDLE_ONLY: '1'
       SHARD: ${{ matrix.shard }}
       START: ${{ matrix.start }}
       END: ${{ matrix.end }}
@@ -93,6 +103,10 @@ jobs:
         with:
           name: egi-v2-common-scene
           path: preview
+      - uses: actions/download-artifact@v4
+        with:
+          name: egi-v2-blender-dist
+          path: blender-dist
       - name: Install checksum-verified Blender LTS
         run: bash egi_preview/install_blender_v2.sh
       - name: Verify scene and render 60 native frames
