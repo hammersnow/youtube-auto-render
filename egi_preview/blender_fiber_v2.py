@@ -24,7 +24,7 @@ S.render.resolution_x=1080
 S.render.resolution_y=1920
 S.render.resolution_percentage=100
 FPS=30
-N=16*FPS
+N=24*FPS
 S.render.fps=FPS
 S.frame_start=1
 S.frame_end=N
@@ -122,8 +122,9 @@ jacket=mat('Protective orange jacket',(.85,.23,.045),0,.32)
 clad=mat('Lower index glass cut section',(.12,.48,.72),.25,.24)
 core=mat('Higher index glass cut section',(.11,.32,.40),.15,.28)
 gold=mat('Gold contacts',(.82,.54,.13),.85,.25)
-signal=mat('Optical pulse',(.06,.83,1),0,.2,3.5)
-ray=mat('Illustrated guided ray',(.06,.65,.89),0,.4,.8)
+signal=mat('Optical pulse',(.14,.88,1),0,.2,8)
+ray=mat('Illustrated guided ray',(.06,.75,1),0,.32,4.5)
+interface=mat('Core boundary teaching highlight',(.15,.64,.80),.12,.27,.4)
 lensmat=mat('Lens schematic',(.24,.62,.76),.25,.14)
 z=.95
 cube('Backdrop',(0,0,-.82),(17,24,.22),bg,0)
@@ -179,7 +180,7 @@ ring_y('Lower-index cladding',0,.24,.60,7.24,clad,pi,2*pi)
 ring_y('Higher-index core',0,0,.24,7.40,core,pi,2*pi)
 # Thin illuminated boundary rails make the two cut surfaces easy to identify.
 for x in (-.24,.24):
-    tube('Core interface',[(x,3.7,z),(x,-3.7,z)],clad,.016)
+    tube('Core interface',[(x,3.7,z),(x,-3.7,z)],interface,.023)
 for x in (-.60,.60):
     tube('Cladding cut edge',[(x,3.45,z),(x,-3.45,z)],steel,.019)
 for y in (2.8,0,-2.8):
@@ -198,42 +199,59 @@ pts=[(0,3.70,z+.012),(.24,2.10,z+.012),(-.24,-1.10,z+.012),(.15,-3.70,z+.012)]
 route=[(0,4.51,z+.012)]+pts+[(0,-4.51,z+.012)]
 rayparts=[]
 for a,b in zip(pts,pts[1:]):
-    o=tube('Guided ray segment',[a,b],ray,.025);rayparts.append(o)
-    for f in (1,180,181,N):
-        o.hide_render=f<181;o.keyframe_insert(data_path='hide_render',frame=f)
-for j,p in enumerate(pts[1:-1]):
-    o=sphere('Reflection interface marker',p,.061,signal)
-    for f in range(1,N+1):
-        t=(f-1)/FPS
-        q=(.7+.3*sin(t*8+j)) if 6<=t<10 else 0
-        o.scale=(q,q,q);o.keyframe_insert(data_path='scale',frame=f)
-def along(pts,t):
-    vs=[Vector(x) for x in pts];ls=[(b-a).length for a,b in zip(vs,vs[1:])]
+    o=tube('Guided ray segment',[a,b],ray,.043);rayparts.append(o)
+    for f in (1,240,241,N):
+        o.hide_render=f<241;o.keyframe_insert(data_path='hide_render',frame=f)
+def along(points,t):
+    vs=[Vector(x) for x in points];ls=[(b-a).length for a,b in zip(vs,vs[1:])]
     d=max(0,min(1,t))*sum(ls)
     for a,b,l in zip(vs,vs[1:],ls):
         if d<=l:return a.lerp(b,d/l)
         d-=l
     return vs[-1]
-# Four discrete on/off optical pulses illustrate signal timing, not actual light speed.
-for i in range(4):
-    pulse=sphere('Optical data pulse '+str(i),route[0],.078,signal)
+def travel_fraction(points,i):
+    ls=[(Vector(b)-Vector(a)).length for a,b in zip(points,points[1:])]
+    return sum(ls[:i])/sum(ls)
+# Slow schematic teaching pulse, then four information pulses; arrivals and reflections share one timeline.
+DEMO_START,DEMO_TIME=8.15,4.65
+DATA_START,DATA_TIME,SPACING=12.3,5.7,.82
+def reflection_strength(t,j):
+    hits=[DEMO_START+DEMO_TIME*travel_fraction(pts,j+1)]
+    hits.extend(DATA_START+i*SPACING+DATA_TIME*travel_fraction(route,j+2) for i in range(4))
+    return max(math.exp(-((t-hit)/.22)**2) for hit in hits)
+for j,p in enumerate(pts[1:-1]):
+    o=sphere('Reflection point',p,.090,signal)
     for f in range(1,N+1):
         t=(f-1)/FPS
-        q=(t-8.8-i*.51)/3.8
+        q=reflection_strength(t,j)
+        o.scale=(q,q,q);o.keyframe_insert(data_path='scale',frame=f)
+demo=sphere('Slow teaching light pulse',pts[0],.092,signal)
+for f in range(1,N+1):
+    t=(f-1)/FPS
+    q=(t-DEMO_START)/DEMO_TIME
+    demo.location=along(pts,q)
+    demo.scale=(1,1.35,1) if 0<=q<=1 else (0,0,0)
+    demo.keyframe_insert(data_path='location',frame=f)
+    demo.keyframe_insert(data_path='scale',frame=f)
+for i in range(4):
+    pulse=sphere('Optical data pulse '+str(i),route[0],.093,signal)
+    for f in range(1,N+1):
+        t=(f-1)/FPS
+        q=(t-DATA_START-i*SPACING)/DATA_TIME
         if 0<=q<=1:
-            pulse.location=along(route,q);pulse.scale=(1,1.4,1)
-        elif i==0 and 0<=t<3:
-            pulse.location=along(route,min(.12,(t%1.0)*.12));pulse.scale=(.85,.85,.85)
+            pulse.location=along(route,q);pulse.scale=(1,1.5,1)
+        elif i==0 and 0<=t<4:
+            pulse.location=along(route,min(.12,(t%1.2)*.10));pulse.scale=(.8,.8,.8)
         else:pulse.scale=(0,0,0)
         pulse.keyframe_insert(data_path='location',frame=f)
         pulse.keyframe_insert(data_path='scale',frame=f)
-# Receiver indicator lights only after modeled pulses reach the detector.
+# Keep the last completed receiver state visible during the closing overview.
 for i in range(4):
     x=-.87+i*.58
     o=cube('Receiver output indicator',(x,-5.22,.51),(.28,.19,.09),green,.035)
     for f in range(1,N+1):
         t=(f-1)/FPS
-        q=1 if t>=12.6+i*.51 else .12
+        q=1 if t>=DATA_START+DATA_TIME+i*SPACING else .12
         o.scale=(q,1,1);o.keyframe_insert(data_path='scale',frame=f)
 # Studio framing: continuous moves within the same apparatus.
 def light(name,loc,energy,size,color):
@@ -244,7 +262,7 @@ light('Warm fill',(6,-2,7),1600,6,(1,.82,.64))
 light('Blue rim',(0,8,5),1800,5,(.60,.82,1))
 d=bpy.data.cameras.new('Studio camera');cam=bpy.data.objects.new('Studio camera',d);S.collection.objects.link(cam);S.camera=cam
 d.type='ORTHO';d.sensor_fit='VERTICAL'
-shots=[(0,(0,4.15,.5),8.5),(3,(0,2.20,.65),6.6),(6,(0,.45,.65),8.0),(10,(0,-.7,.65),11.2),(13,(0,-4.15,.5),8.5)]
+shots=[(0,(0,4.15,.5),8.5),(4,(0,2.20,.65),6.6),(8,(0,.48,.65),5.9),(13,(0,-.7,.65),11.2),(17,(0,-4.15,.5),8.5),(21,(0,0,.5),17.4)]
 def smooth(x):x=max(0,min(1,x));return x*x*(3-2*x)
 def shot_index(t):return max(i for i,(a,*_) in enumerate(shots) if a<=t)
 def camera_pose(t):
@@ -263,14 +281,16 @@ anchors=[
     [('GLASS CORE',(.03,2.0,z)),('CLADDING',(.45,2.6,z))],
     [('CORE INTERFACE',(.24,2.10,z)),('GUIDED RAY',(-.14,-.44,z))],
     [('LIGHT PULSES',(0,-.7,z)),('PROTECTIVE JACKET',(.72,-2.6,z))],
-    [('PHOTODIODE',(0,-4.51,z)),('ELECTRICAL OUTPUT',(.29,-5.22,.51))]
+    [('PHOTODIODE',(0,-4.51,z)),('ELECTRICAL OUTPUT',(.29,-5.22,.51))],
+    [('LIGHT IN',(0,4.51,z)),('DATA OUT',(0,-4.51,z))]
 ]
 focus=[
     [(-1.9,3.25,.0),(1.9,5.9,1.6)],
     [(-.9,1.2,.1),(.9,3.4,1.5)],
     [(-.85,-1.4,.1),(.85,2.6,1.5)],
     [(-.95,-3.7,.1),(.95,3.7,1.5)],
-    [(-1.9,-5.9,.0),(1.9,-3.25,1.6)]
+    [(-1.9,-5.9,.0),(1.9,-3.25,1.6)],
+    [(-2.0,-5.9,.0),(2.0,5.9,1.6)]
 ]
 def project(p):
     q=world_to_camera_view(S,cam,Vector(p));return [round(q.x*1080,2),round((1-q.y)*1920,2)]
@@ -281,7 +301,8 @@ for f in range(1,N+1):
     lo,hi=focus[i];cs=[project((x,y,z)) for x in (lo[0],hi[0]) for y in (lo[1],hi[1]) for z in (lo[2],hi[2])]
     labels=[{'text':name,'point':project(p)} for name,p in anchors[i]]
     settled=i==0 or t-shots[i][0]>=.72
-    data[str(f)]={'t':t,'shot':i,'settled':settled,'labels':labels,'focus':[min(p[0] for p in cs),min(p[1] for p in cs),max(p[0] for p in cs),max(p[1] for p in cs)]}
+    flashes=[{'point':project(p),'strength':reflection_strength(t,j)} for j,p in enumerate(pts[1:-1]) if reflection_strength(t,j)>.04]
+    data[str(f)]={'t':t,'shot':i,'settled':settled,'labels':labels,'flashes':flashes,'focus':[min(p[0] for p in cs),min(p[1] for p in cs),max(p[0] for p in cs),max(p[1] for p in cs)]}
     if settled:
         for a in labels:
             x,y=a['point'];assert 24<x<1056 and 180<y<1530,(f,a)

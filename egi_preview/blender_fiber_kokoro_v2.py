@@ -5,18 +5,21 @@ import numpy as np
 import soundfile as sf
 import torch
 from kokoro import KPipeline
-from PIL import Image, ImageDraw, ImageFont, ImageFilter
+from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageChops
 R=24000
+DURATION=24
+N=DURATION*30
 CUES=[
-(0,3,"A laser sends light into a glass fiber.","ELECTRIC SIGNAL TO LIGHT"),
-(3,6,"The core has a higher refractive index than the cladding.","CORE AND CLADDING"),
-(6,10,"At a grazing angle, total internal reflection keeps light inside.","TOTAL INTERNAL REFLECTION"),
-(10,13,"Light pulses carry information through the fiber.","LIGHT PULSES CARRY DATA"),
-(13,16,"A photodiode turns the light back into an electrical signal.","LIGHT TO ELECTRIC SIGNAL")]
+(0,4,"A laser turns an electrical signal into pulses of light.","ELECTRIC SIGNAL TO LIGHT"),
+(4,8,"The glass core has a higher refractive index than its cladding.","CORE AND CLADDING"),
+(8,13,"At a grazing angle, total internal reflection guides the light along the core.","TOTAL INTERNAL REFLECTION"),
+(13,17,"These light pulses carry information through the fiber.","LIGHT PULSES CARRY DATA"),
+(17,21,"A photodiode detects the pulses and turns them back into electrical signals.","LIGHT TO ELECTRIC SIGNAL"),
+(21,23,"Light in. Data out.","LIGHT IN  /  DATA OUT")]
 def run(*args):subprocess.run(args,check=True)
 torch.set_num_threads(min(4,os.cpu_count() or 1))
 pipe=KPipeline(lang_code='a',device='cpu',repo_id='hexgrad/Kokoro-82M')
-mix=np.zeros(R*16,dtype=np.float32);meta=[]
+mix=np.zeros(R*DURATION,dtype=np.float32);meta=[]
 for i,(start,end,words,caption) in enumerate(CUES):
     chunks=[np.asarray(a.detach().cpu() if hasattr(a,'detach') else a,dtype=np.float32) for _,_,a in pipe(words,voice='af_heart',speed=1.)]
     assert chunks,words
@@ -59,7 +62,7 @@ def tag(d,text,anchor,y,align):
     d.text((x+20,cy),text,font=font,fill='#f3fbfc',anchor='lm')
 frames=sorted(Path('frames').glob('f_*.png'))
 preflight=os.environ.get('EGI_RENDER_MODE','preflight')=='preflight'
-assert len(frames)==(5 if preflight else 480),len(frames)
+assert len(frames)==(5 if preflight else N),len(frames)
 data=json.loads(Path('preview/anchors.json').read_text())
 Path('composed').mkdir(exist_ok=True)
 for p in frames:
@@ -73,6 +76,22 @@ for p in frames:
     mask=mask.filter(ImageFilter.GaussianBlur(115))
     darker=Image.blend(im,Image.new('RGB',im.size,'#091523'),.34)
     im=Image.composite(im,darker,mask)
+    # Local optical bloom precisely follows projected core/cladding bounce points.
+    # Teaching overlay only: no suggestion of real light escaping the cladding.
+    for flash in info.get('flashes',[]):
+        ax,ay=map(int,flash['point']);q=flash['strength']
+        if not (50<ax<1030 and 195<ay<1510):continue
+        radius=44
+        box=(ax-radius,ay-radius,ax+radius,ay+radius)
+        halo=Image.new('RGB',(2*radius,2*radius))
+        hd=ImageDraw.Draw(halo)
+        rr=12+int(6*q)
+        hd.ellipse((radius-rr,radius-rr,radius+rr,radius+rr),fill=(int(120*q),int(225*q),int(255*q)))
+        halo=halo.filter(ImageFilter.GaussianBlur(9))
+        im.paste(ImageChops.add(im.crop(box),halo),box[:2])
+        hd=ImageDraw.Draw(im)
+        rr=3+int(5*q)
+        hd.ellipse((ax-rr,ay-rr,ax+rr,ay+rr),fill=(int(150+105*q),int(220+35*q),255))
     d=ImageDraw.Draw(im)
     d.rectangle((0,0,1080,180),fill='#0b1624')
     d.rectangle((0,1530,1080,1920),fill='#0b1624')
@@ -87,4 +106,4 @@ for p in frames:
     if preflight:im.save(f'preview/v2-frame-{frame:04d}.jpg',quality=96)
     else:im.save(f'composed/{frame-1:04d}.png')
 if not preflight:
-    run('ffmpeg','-y','-v','error','-framerate','30','-i','composed/%04d.png','-i','preview/narration.wav','-c:v','libx264','-crf','17','-preset','fast','-pix_fmt','yuv420p','-c:a','aac','-b:a','192k','-movflags','+faststart','-t','16','preview/EGI_Fiber_Optics_V2.mp4')
+    run('ffmpeg','-y','-v','error','-framerate','30','-i','composed/%04d.png','-i','preview/narration.wav','-c:v','libx264','-crf','17','-preset','fast','-pix_fmt','yuv420p','-c:a','aac','-b:a','192k','-movflags','+faststart','-t',str(DURATION),'preview/EGI_Fiber_Optics_V2.mp4')

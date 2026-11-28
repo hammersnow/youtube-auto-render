@@ -1,0 +1,3 @@
+# Fiber V2 revision — 28 Nov 2026
+
+User requested stronger optical reflections and no abrupt ending. Revised duration 24 s / 720 native frames, 8 x 90 frame shards. 0–4 launch, 4–8 core/cladding, 8–13 close-up and slow schematic reflection pulse, 13–17 data transport, 17–21 receiver conversion, 21–24 wide overview and short spoken recap ending before 23 s; remaining visual hold. Teaching bloom synchronized to actual projected bounce locations, not physical leakage. Exact same Blender 4.5.16, native 1080x1920/30fps, Cycles 32 adaptive samples/OIDN, Kokoro af_heart. Previous 16 s artifact is superseded, not approved for upload. No main changes or publication; require full independent AV review of revised MP4.
