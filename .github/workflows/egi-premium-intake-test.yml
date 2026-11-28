@@ -24,3 +24,31 @@ jobs:
           python tests/test_egi_premium_intake.py
           python scripts/egi_release_gate.py self-test
           python scripts/render_egi_daily.py --day 2026-11-27 --check-only
+
+      - name: Read-only real approved asset and source identity test
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          mkdir -p /tmp/egi-approved-readonly
+          gh release download egi-approved-regenerative-braking-v2 --repo "$GITHUB_REPOSITORY" --pattern EGI_Blender_Kokoro_V2.mp4 --output /tmp/egi-approved-readonly/EGI_Blender_Kokoro_V2.mp4
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/45938677845" > /tmp/egi-approved-readonly/run.json
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/15175761803" > /tmp/egi-approved-readonly/artifact.json
+          python - <<'PY'
+          import json, sys
+          from pathlib import Path
+          sys.path.insert(0, "scripts")
+          from egi_approved_assets import verify_file
+          d=Path("/tmp/egi-approved-readonly")
+          a=json.load(open("config/egi_episode_catalog.json"))["schedule"]["2026-11-27"][0]["approved_asset"]
+          r=json.loads((d/"run.json").read_text())
+          ar=json.loads((d/"artifact.json").read_text())
+          assert r["head_sha"]==a["source_commit"] and r["conclusion"]=="success"
+          assert ar["name"]=="egi-blender-v2-full-preview"
+          assert ar["workflow_run"]["id"]==a["source_run"] and ar["workflow_run"]["head_sha"]==a["source_commit"]
+          a.update({"native_frames":480,"duration_seconds":16})
+          verify_file(d/a["file"],a)
+          print("EGI_REAL_ARCHIVE_AND_SOURCE_QA_PASS")
+          PY
