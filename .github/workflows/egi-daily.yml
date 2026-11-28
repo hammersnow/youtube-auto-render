@@ -2,6 +2,9 @@ name: EGI Daily Original Shorts (2 MAX)
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['config/egi_episode_catalog.json']
   schedule:
     - cron: '17 21 * * *' # 00:17 Europe/Istanbul next local day; primary
     - cron: '17 0 * * *'  # 03:17 Europe/Istanbul; idempotent fallback
@@ -74,6 +77,12 @@ jobs:
               echo "EGI_RENDER_SKIPPED: today's complete release already exists"
               exit 0
             fi
+          fi
+          # Do not replace a batch once a publisher has started/succeeded today.
+          gh run list --workflow publish-youtube.yml --branch main --limit 40 --json createdAt,status,conclusion > /tmp/egi-publish-existing.json
+          if ! python3 scripts/egi_release_gate.py publisher --day "$DAY" --runs /tmp/egi-publish-existing.json; then
+            echo "BLOCKED: today already has a publisher; do not replace its release" >&2
+            exit 1
           fi
           echo "eligible=true" >> "$GITHUB_OUTPUT"
           echo "release_ready=false" >> "$GITHUB_OUTPUT"
