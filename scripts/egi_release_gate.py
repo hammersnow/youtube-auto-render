@@ -51,6 +51,10 @@ def release_ready(day, catalog, manifest, assets):
             return False
         if row.get("title") != proposed.get("title"):
             return False
+        if proposed.get("renderer") in ("blender-prebuilt-v2", "premium-approved-v2"):
+            approved = proposed.get("approved_asset", {})
+            if name != approved.get("file") or sha != approved.get("sha256"):
+                return False
         files.append(name)
     if len(set(files)) != len(files):
         return False

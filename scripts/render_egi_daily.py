@@ -9,6 +9,7 @@ CATALOG = ROOT / "config/egi_episode_catalog.json"
 OUT = ROOT / "outputs/egi_daily"
 IST = timezone(timedelta(hours=3))
 STRATEGY = "egi-premium-v16"
+from egi_approved_assets import RENDERER, validate_entry, archive_and_get
 FILES = {
     "v16-software": "EGI_V16_Software_HTML_CSS_JavaScript_Rich_Animation.mp4",
     "v16-technology": "EGI_V16_Technology_One_Event_One_Callout.mp4",
@@ -29,11 +30,12 @@ def check_catalog(cat):
     assert cat.get("publish_enabled") is True
     assert cat.get("max_daily_shorts") == 2
     seen = set()
+    asset_hashes = set()
     for date, episodes in cat["schedule"].items():
         datetime.strptime(date, "%Y-%m-%d")
         assert 1 <= len(episodes) <= 2, (date,len(episodes))
         for e in episodes:
-            assert e["renderer"] in FILES, e
+            assert e["renderer"] in FILES or e["renderer"] == RENDERER, e
             assert e["id"] not in seen, "Duplicate episode ID: "+e["id"]
             seen.add(e["id"])
             assert e["title"].endswith("#Shorts")
@@ -45,6 +47,13 @@ def check_catalog(cat):
                 assert a["file"] == FILES[e["renderer"]]
                 assert a["sha256"] == "6a1f92a8c5336fe8003de97d70b0403a1a0061f00452d605dd8801eeddef451f"
                 assert a["source_commit"] == "0eaa4d08bb2886ebc3d714b98845927033977394"
+            elif e["renderer"] == RENDERER:
+                a = validate_entry(e)
+            if e["renderer"] in ("blender-prebuilt-v2", RENDERER):
+                assert a["sha256"] not in asset_hashes, "Repeated approved asset hash"
+                asset_hashes.add(a["sha256"])
+        names = [e["approved_asset"]["file"] if e["renderer"] == RENDERER else FILES[e["renderer"]] for e in episodes]
+        assert len(names) == len(set(names)), "Duplicate daily output filename"
     return seen
 
 def command(e, target):
@@ -102,8 +111,11 @@ def main():
     env["EGI_OUTPUT_DIR"]=str(OUT)
     shorts=[]
     for e in episodes:
-        target = OUT / FILES[e["renderer"]]
-        if e["renderer"] == "blender-prebuilt-v2":
+        target = OUT / (e["approved_asset"]["file"] if e["renderer"] == RENDERER else FILES[e["renderer"]])
+        if target.exists(): target.unlink()
+        if e["renderer"] == RENDERER:
+            m = archive_and_get(e, target)
+        elif e["renderer"] == "blender-prebuilt-v2":
             a=e["approved_asset"]
             url="https://github.com/hammersnow/youtube-auto-render/releases/download/"+a["tag"]+"/"+a["file"]
             subprocess.run(["curl","-fL","--retry","4","-o",str(target),url],check=True)
@@ -116,14 +128,15 @@ def main():
             assert original.is_file(),original
             original.replace(target)
         assert target.is_file(),target
-        m=probe(target,e["renderer"])
+        if e["renderer"] != RENDERER:
+            m=probe(target,e["renderer"])
         checksum=hashlib.sha256(target.read_bytes()).hexdigest()
         shorts.append({
            "episode_id":e["id"],"family":e["category"],"file":target.name,
            "title":e["title"],"description":e["description"],
            "tags":e["tags"],"sha256":checksum,
            "duration":round(m["seconds"],3),"video_codec":"h264","audio_codec":"aac",
-           "quality_tier":"EGI-V16-reviewed","language":"en","watermark":"Ekrem Gökberk İşcan"
+           "quality_tier":"EGI-Premium-V2-reviewed" if e["renderer"] in (RENDERER,"blender-prebuilt-v2") else "EGI-V16-reviewed","language":"en","watermark":"Ekrem Gökberk İşcan"
         })
     assert len(set(x["sha256"] for x in shorts))==len(shorts),"Same video duplicated"
     manifest={"date":args.day,"brand":"EGI","strategy":STRATEGY,

@@ -1,0 +1,26 @@
+name: EGI premium intake validation (NO PUBLISH)
+on:
+  push:
+    branches: [rd-egi-premium-approved-asset-intake-20261128]
+  pull_request:
+    paths:
+      - 'scripts/egi_approved_assets.py'
+      - 'scripts/render_egi_daily.py'
+      - 'scripts/egi_release_gate.py'
+      - 'tests/test_egi_premium_intake.py'
+      - '.github/workflows/egi-daily.yml'
+permissions:
+  contents: read
+jobs:
+  unit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: |
+          python -m py_compile scripts/egi_approved_assets.py scripts/render_egi_daily.py scripts/egi_release_gate.py tests/test_egi_premium_intake.py
+          python tests/test_egi_premium_intake.py
+          python scripts/egi_release_gate.py self-test
+          python scripts/render_egi_daily.py --day 2026-11-27 --check-only
