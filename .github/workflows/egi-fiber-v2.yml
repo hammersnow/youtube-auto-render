@@ -1,0 +1,182 @@
+name: EGI premium optical fiber native render
+on:
+  push:
+    branches: [rd-egi-premium-fiber-20261128]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: egi-blender-v2-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  prepare:
+    if: github.ref == 'refs/heads/rd-egi-premium-fiber-20261128'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      EGI_RENDER_MODE: prepare
+      EGI_INSTALL_MODE: render
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install checksum-verified Blender LTS
+        run: bash egi_preview/install_blender_v2.sh
+      - name: Freeze common scene and projected labels
+        run: |
+          python -m py_compile egi_preview/blender_fiber_v2.py egi_preview/blender_fiber_kokoro_v2.py
+          mkdir -p frames preview
+          /tmp/egi-blender/blender -b -t 4 --python-exit-code 1 --python egi_preview/blender_fiber_v2.py > prepare.log 2>&1 || { tail -100 prepare.log; exit 1; }
+          tail -10 prepare.log
+          python - <<'PY'
+          import json
+          d=json.load(open('preview/geometry.json'))
+          assert d['native']==[1080,1920,30] and d['frames']==480 and d['samples']==32 and d['denoise']=='OPENIMAGEDENOISE'
+          assert len(json.load(open('preview/anchors.json')))==480
+          PY
+          (cd preview && sha256sum egi_fiber_v2.blend anchors.json geometry.json > scene.sha256)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: egi-v2-blender-dist
+          path: |
+            blender-dist/blender-4.5.16-linux-x64.tar.xz
+            blender-dist/blender.sha256
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: egi-v2-common-scene
+          path: |
+            preview/egi_fiber_v2.blend
+            preview/anchors.json
+            preview/geometry.json
+            preview/scene.sha256
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+  render:
+    needs: prepare
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        include:
+          - shard: 0
+            start: 1
+            end: 60
+          - shard: 1
+            start: 61
+            end: 120
+          - shard: 2
+            start: 121
+            end: 180
+          - shard: 3
+            start: 181
+            end: 240
+          - shard: 4
+            start: 241
+            end: 300
+          - shard: 5
+            start: 301
+            end: 360
+          - shard: 6
+            start: 361
+            end: 420
+          - shard: 7
+            start: 421
+            end: 480
+    env:
+      EGI_INSTALL_MODE: render
+      EGI_BLENDER_BUNDLE_ONLY: '1'
+      SHARD: ${{ matrix.shard }}
+      START: ${{ matrix.start }}
+      END: ${{ matrix.end }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/download-artifact@v4
+        with:
+          name: egi-v2-common-scene
+          path: preview
+      - uses: actions/download-artifact@v4
+        with:
+          name: egi-v2-blender-dist
+          path: blender-dist
+      - name: Install checksum-verified Blender LTS
+        run: bash egi_preview/install_blender_v2.sh
+      - name: Verify scene and render 60 native frames
+        run: |
+          (cd preview && sha256sum --check scene.sha256)
+          mkdir -p frames
+          /usr/bin/time -v -o benchmark.txt /tmp/egi-blender/blender -b preview/egi_fiber_v2.blend -t 4 --python-exit-code 1 -o "$PWD/frames/f_####" -s "$START" -e "$END" -a > render.log 2>&1 || { tail -100 render.log; exit 1; }
+          tail -10 render.log
+          python egi_preview/check_blender_v2_shard.py "$SHARD" "$START" "$END"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: egi-v2-shard-${{ matrix.shard }}
+          path: |
+            frames/
+            manifest.json
+            benchmark.txt
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+  compose:
+    needs: [prepare, render]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      EGI_RENDER_MODE: full
+      EGI_INSTALL_MODE: compose
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      PYTHONUNBUFFERED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/download-artifact@v4
+        with:
+          name: egi-v2-common-scene
+          path: preview
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: egi-v2-shard-*
+          path: shards
+          merge-multiple: false
+      - name: Install Kokoro and validate all frame shards
+        run: |
+          bash egi_preview/install_blender_v2.sh
+          . .venv/bin/activate
+          (cd preview && sha256sum --check scene.sha256)
+          python egi_preview/gather_blender_v2_shards.py "$GITHUB_SHA"
+      - name: Compose tracked labels, Kokoro narration and final MP4
+        run: |
+          . .venv/bin/activate
+          /usr/bin/time -v -o preview/composite-benchmark.txt python egi_preview/blender_fiber_kokoro_v2.py
+          ffmpeg -v error -i preview/EGI_Fiber_Optics_V2.mp4 -f null -
+          ffprobe -v error -show_streams -show_format -of json preview/EGI_Fiber_Optics_V2.mp4 > preview/probe.json
+          python - <<'PY'
+          import json
+          d=json.load(open('preview/probe.json'));v=next(s for s in d['streams'] if s['codec_type']=='video');a=next(s for s in d['streams'] if s['codec_type']=='audio')
+          assert (v['width'],v['height'],v['avg_frame_rate'],v['codec_name'])==(1080,1920,'30/1','h264')
+          assert int(v['nb_frames'])==480 and a['codec_name']=='aac'
+          assert abs(float(d['format']['duration'])-16)<.2
+          print('NATIVE_30FPS_MEDIA_QA_PASS')
+          PY
+          for t in 1 5 8 12 15; do
+            ffmpeg -v error -ss "$t" -i preview/EGI_Fiber_Optics_V2.mp4 -frames:v 1 -y "preview/frame-$t.jpg"
+          done
+          (cd preview && sha256sum EGI_Fiber_Optics_V2.mp4 > SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: egi-fiber-v2-full-preview
+          path: preview/
+          if-no-files-found: error
+          retention-days: 7
