@@ -1,0 +1,50 @@
+name: EGI causal mechanisms R&D preview only
+on:
+  workflow_dispatch:
+  push:
+    branches: [rd-egi-v16-causal-mechanisms-20261123]
+permissions:
+  contents: read
+jobs:
+  preview:
+    if: github.ref == 'refs/heads/rd-egi-v16-causal-mechanisms-20261123'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg fonts-dejavu-core
+          python3 -m pip install --disable-pip-version-check Pillow numpy
+      - name: Smoke and full 1080x1920 renders
+        run: |
+          set -euo pipefail
+          mkdir -p previews
+          for kind in branch regen; do
+            python3 egi_preview/egi_rd_causal_mechanisms_20261123.py --kind "$kind" --output /tmp/unused.mp4 --smoke
+            /usr/bin/time -v -o "previews/${kind}.benchmark.txt" python3 egi_preview/egi_rd_causal_mechanisms_20261123.py --kind "$kind" --output "previews/${kind}.mp4"
+            ffmpeg -v error -i "previews/${kind}.mp4" -f null -
+            ffprobe -v error -show_entries stream=codec_name,width,height -show_entries format=duration -of json "previews/${kind}.mp4" > "previews/${kind}.probe.json"
+            ffmpeg -v error -ss 1 -i "previews/${kind}.mp4" -frames:v 1 -y "previews/${kind}-hook.png"
+            ffmpeg -v error -ss 19 -i "previews/${kind}.mp4" -frames:v 1 -y "previews/${kind}-result.png"
+          done
+          python3 - <<'PY'
+          import json,hashlib
+          from pathlib import Path
+          hashes=[]
+          for kind in ("branch","regen"):
+              p=Path("previews")/(kind+".mp4")
+              assert p.stat().st_size>100000
+              streams=json.loads((Path("previews")/(kind+".probe.json")).read_text())
+              assert abs(float(streams["format"]["duration"])-28)<1
+              assert any(s["codec_name"]=="h264" and s["width"]==1080 and s["height"]==1920 for s in streams["streams"])
+              assert any(s["codec_name"]=="aac" for s in streams["streams"])
+              hashes.append(hashlib.sha256(p.read_bytes()).hexdigest())
+          assert len(set(hashes))==2
+          print("FULL_MEDIA_QA",hashes)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: egi-causal-mechanisms-full-previews
+          path: previews/
+          retention-days: 7
