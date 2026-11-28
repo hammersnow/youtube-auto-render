@@ -1,0 +1,50 @@
+name: EGI V16 R&D TCP and Brakes full previews
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - rd-egi-v16-20261120-packet-gear
+permissions:
+  contents: read
+jobs:
+  render-preview:
+    if: github.ref != 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg fonts-dejavu-core
+      - run: python3 -m pip install --disable-pip-version-check Pillow==12.0.0
+      - name: Deterministic frame smoke
+        run: python3 egi_preview/egi_rd_20261120_tcp_brakes.py --smoke
+      - name: Full 1080x1920 previews (never publish)
+        run: |
+          mkdir -p outputs/egi_rd
+          /usr/bin/time -f 'TCP_WALL_S=%e MAX_RSS_KB=%M' python3 egi_preview/egi_rd_20261120_tcp_brakes.py --kind tcp --out outputs/egi_rd/egi-tcp-window-v16.mp4
+          /usr/bin/time -f 'BRAKE_WALL_S=%e MAX_RSS_KB=%M' python3 egi_preview/egi_rd_20261120_tcp_brakes.py --kind brake --out outputs/egi_rd/egi-hydraulic-brakes-v16.mp4
+      - name: Validate decoded motion, audio, duration and unique outputs
+        run: |
+          python3 - <<'PY'
+          import json,subprocess,hashlib
+          from pathlib import Path
+          hashes=[]
+          for p in sorted(Path('outputs/egi_rd').glob('*.mp4')):
+              x=json.loads(subprocess.check_output(['ffprobe','-v','error','-show_streams','-show_format','-of','json',str(p)]))
+              v=[s for s in x['streams'] if s['codec_type']=='video']
+              a=[s for s in x['streams'] if s['codec_type']=='audio']
+              assert len(v)==len(a)==1 and v[0]['codec_name']=='h264' and a[0]['codec_name']=='aac'
+              assert (v[0]['width'],v[0]['height'])==(1080,1920)
+              assert 25.8<float(x['format']['duration'])<26.3
+              assert p.stat().st_size>200000
+              raw=subprocess.check_output(['ffmpeg','-v','error','-ss','5','-i',str(p),'-frames:v','1','-f','md5','-'])
+              assert b'MD5=' in raw
+              hashes.append(hashlib.sha256(p.read_bytes()).hexdigest())
+              print('FULL_PREVIEW_QA_OK',p.name,hashes[-1][:16])
+          assert len(hashes)==2 and len(set(hashes))==2
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: egi-rd-20261120-full-mp4
+          retention-days: 7
+          if-no-files-found: error
+          path: outputs/egi_rd/*.mp4
