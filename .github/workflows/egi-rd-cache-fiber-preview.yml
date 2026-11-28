@@ -1,0 +1,49 @@
+name: EGI R&D cache/fiber full preview (no publish)
+on:
+  push:
+    branches: [rd-egi-v16-20261121-cpu-cache-and-optics]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  preview:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg fonts-dejavu-core
+          python3 -m pip install --disable-pip-version-check Pillow==12.0.0
+      - name: Deterministic source and nonblank frame smoke
+        run: python3 egi_preview/egi_v16_cache_fiber_rd.py --smoke
+      - name: Render two complete original videos and record wall-time
+        run: |
+          mkdir -p outputs/egi_rd
+          /usr/bin/time -v python3 egi_preview/egi_v16_cache_fiber_rd.py --mode cache --output outputs/egi_rd/cache.mp4 2>outputs/egi_rd/cache_benchmark.txt
+          /usr/bin/time -v python3 egi_preview/egi_v16_cache_fiber_rd.py --mode fiber --output outputs/egi_rd/fiber.mp4 2>outputs/egi_rd/fiber_benchmark.txt
+      - name: Decode, codec, dimensions, duration and unique SHA
+        run: |
+          python3 - <<'PY'
+          import hashlib,json,subprocess
+          files=['outputs/egi_rd/cache.mp4','outputs/egi_rd/fiber.mp4']
+          hashes=[]
+          for path in files:
+              meta=json.loads(subprocess.check_output(['ffprobe','-v','error','-show_streams','-show_format','-of','json',path]))
+              video=next(x for x in meta['streams'] if x['codec_type']=='video')
+              audio=next(x for x in meta['streams'] if x['codec_type']=='audio')
+              assert (video['width'],video['height'])==(1080,1920)
+              assert video['codec_name']=='h264' and audio['codec_name']=='aac'
+              assert 25.5<float(meta['format']['duration'])<26.5
+              subprocess.run(['ffmpeg','-v','error','-xerror','-i',path,'-f','null','-'],check=True)
+              hashes.append(hashlib.sha256(open(path,'rb').read()).hexdigest())
+          assert len(set(hashes))==2
+          print('EGI_FULL_PREVIEW_QA_OK',hashes)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: egi-cache-fiber-full-preview
+          retention-days: 7
+          if-no-files-found: warn
+          path: outputs/egi_rd/
